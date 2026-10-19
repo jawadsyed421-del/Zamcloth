@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Search, Menu, X } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import logo from '../assets/zm-logo.png';
 
 export default function Navbar() {
     const { toggleCart, cartCount } = useCart();
+    const { user } = useAuth();
     const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
     const location = useLocation();
@@ -66,6 +68,9 @@ export default function Navbar() {
                     <button className="menu-toggle" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(o => !o)} style={{ color: 'var(--color-text)' }}>
                         {open ? <X size={24} /> : <Menu size={24} />}
                     </button>
+                    <Link to={user ? '/account' : '/login'} aria-label={user ? 'My account' : 'Sign in'} title={user ? user.name : 'Sign in'} style={{ color: 'var(--color-text)', display: 'flex' }}>
+                        <User size={22} />
+                    </Link>
                     <button aria-label="Search" style={{ color: 'var(--color-text)' }}>
                         <Search size={22} />
                     </button>

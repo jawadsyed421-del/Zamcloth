@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { CheckCircle, Shield } from 'lucide-react';
 
 export default function Checkout() {
-    const { cartItems, cartTotal } = useCart();
+    const { cartItems, cartTotal, clearCart } = useCart();
+    const { user, loading: authLoading, authFetch } = useAuth();
+    const [error, setError] = useState('');
     const [step, setStep] = useState('shipping'); // shipping, payment, success
     const [loading, setLoading] = useState(false);
     const [shippingAddress, setShippingAddress] = useState({
-        address: '', city: '', postalCode: '', country: 'US', firstName: '', lastName: '', email: '', phone: ''
+        address: '', city: '', postalCode: '', firstName: '', lastName: '', email: user?.email || '', phone: user?.phone || ''
     });
+
+    if (authLoading) return <div className="container section" style={{ minHeight: '60vh' }} />;
+    if (!user) return <Navigate to="/login?next=/checkout" replace />;
 
     if (cartItems.length === 0 && step !== 'success') {
         return (
@@ -27,84 +33,77 @@ export default function Checkout() {
     const handlePayment = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
+        let orderId = '';
+
+        const post = (url, body) => authFetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
 
         try {
-            // 1. Create Order in Database
-            const orderData = {
-                orderItems: cartItems.map(item => ({
-                    product: item.id,
-                    name: item.name,
-                    image: item.image,
-                    price: item.price,
-                    quantity: item.quantity,
-                    size: item.size
-                })),
-                shippingAddress,
-                paymentMethod: 'Razorpay',
-                itemsPrice: cartTotal,
-                taxPrice: 0,
-                shippingPrice: 0,
-                totalPrice: cartTotal
-            };
-
-            const orderRes = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData)
+            // 1. Save the order. The server prices it from the database.
+            const orderRes = await post('/api/orders', {
+                items: cartItems.map(item => ({ productId: item.id, size: item.size, quantity: item.quantity })),
+                shippingAddress: {
+                    fullName: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
+                    email: shippingAddress.email,
+                    phone: shippingAddress.phone,
+                    address: shippingAddress.address,
+                    city: shippingAddress.city,
+                    postalCode: shippingAddress.postalCode
+                }
             });
             const order = await orderRes.json();
-            if (!order._id) throw new Error('Order creation failed');
+            if (!orderRes.ok) throw new Error(order.message || 'Could not place your order');
+            orderId = order._id;
 
-            // 2. Create Razorpay Order
-            const paymentRes = await fetch('/api/payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: Math.round(cartTotal * 100) }) // Amount in smallest currency unit
-            });
+            // 2. Start the payment for that order
+            const paymentRes = await post('/api/payment/create', { orderId });
             const paymentOrder = await paymentRes.json();
+            if (!paymentRes.ok) throw new Error(paymentOrder.message || 'Could not start the payment');
 
-            // 3. Fetch Key
-            const keyRes = await fetch('/api/payment/key');
-            const key = await keyRes.text();
+            const key = await (await fetch('/api/payment/key')).text();
 
-            // 4. Initialize Razorpay Checkout
-            const options = {
-                key: key,
+            // 3. Open Razorpay; the server verifies the result before the order counts as paid
+            const rzp = new window.Razorpay({
+                key,
                 amount: paymentOrder.amount,
                 currency: paymentOrder.currency,
-                name: "ZamCloth",
-                description: "Order #" + order._id,
+                name: 'ZamCloth',
+                description: `Order …${orderId.slice(-6).toUpperCase()}`,
                 order_id: paymentOrder.id,
-                handler: async function (response) {
-                    // 5. Verify Payment (Update Order to Paid)
-                    await fetch(`/api/orders/${order._id}/pay`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            id: response.razorpay_payment_id,
-                            status: 'COMPLETED',
-                            update_time: new Date().toISOString(),
-                            email_address: shippingAddress.email
-                        })
-                    });
-                    setStep('success');
-                    setLoading(false);
+                handler: async (response) => {
+                    try {
+                        const verifyRes = await post('/api/payment/verify', { orderId, ...response });
+                        const verified = await verifyRes.json();
+                        if (!verifyRes.ok) throw new Error(verified.message);
+                        clearCart();
+                        setStep('success');
+                    } catch (err) {
+                        setError(`${err.message || 'Payment could not be confirmed'}. If money was deducted, contact us with order …${orderId.slice(-6).toUpperCase()}.`);
+                    } finally {
+                        setLoading(false);
+                    }
+                },
+                modal: {
+                    ondismiss: () => {
+                        post('/api/payment/failed', { orderId, reason: 'Payment window closed' }).catch(() => { });
+                        setError('Payment was not completed. You can try again.');
+                        setLoading(false);
+                    }
                 },
                 prefill: {
-                    name: shippingAddress.firstName + ' ' + shippingAddress.lastName,
+                    name: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
                     email: shippingAddress.email,
                     contact: shippingAddress.phone
                 },
-                theme: {
-                    color: "var(--color-accent)"
-                }
-            };
-
-            const rzp1 = new window.Razorpay(options);
-            rzp1.open();
-        } catch (error) {
-            console.error(error);
-            alert('Payment failed. Please try again.');
+                theme: { color: '#D4AF37' }
+            });
+            rzp.open();
+        } catch (err) {
+            setError(err.message || 'Payment failed. Please try again.');
             setLoading(false);
         }
     };
@@ -117,7 +116,8 @@ export default function Checkout() {
                 <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>
                     Thank you for choosing ZamCloth. Your order has been received and is being processed with care.
                 </p>
-                <Link to="/" className="btn-primary">Return Home</Link>
+                <Link to="/account" className="btn-primary" style={{ marginRight: '1rem' }}>View my orders</Link>
+                <Link to="/" style={{ color: 'var(--color-text-muted)', textDecoration: 'underline' }}>Return home</Link>
             </div>
         );
     }
@@ -166,6 +166,7 @@ export default function Checkout() {
                                     You will be redirected to the Razorpay secure gateway to complete your purchase.
                                 </p>
                             </div>
+                            {error && <p role="alert" style={{ color: '#e07a7a', marginBottom: '1rem' }}>{error}</p>}
                             <button
                                 type="submit"
                                 disabled={loading}

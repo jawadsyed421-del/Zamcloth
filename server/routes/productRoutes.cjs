@@ -4,7 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 const Product = require('../models/Product.cjs');
-const { requireAdmin } = require('../middleware/adminAuth.cjs');
+const { requireAdmin } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 

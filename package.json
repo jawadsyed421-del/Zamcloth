@@ -7,6 +7,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "vite",
     "server": "node server/server.cjs",
+    "check:db": "node server/checkdb.cjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

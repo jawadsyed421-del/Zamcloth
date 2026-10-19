@@ -13,10 +13,11 @@ app.use(cors());
 app.use(express.json());
 
 // Connect Database
-connectDB();
+connectDB().then(() => require('./routes/adminRoutes.cjs').syncAdminFromEnv()).catch(e => console.error('Admin setup failed:', e.message));
 
 // Routes
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { index: false }));
+app.use('/api/auth', require('./routes/authRoutes.cjs'));
 app.use('/api/admin', require('./routes/adminRoutes.cjs'));
 app.use('/api/products', require('./routes/productRoutes.cjs'));
 app.use('/api/orders', require('./routes/orderRoutes.cjs'));

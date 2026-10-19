@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Upload, Package, Trash2, Save } from 'lucide-react';
+import { LogOut, Upload, Package, Trash2, Save, ReceiptText } from 'lucide-react';
 import SafeImage from '../components/SafeImage';
 
 const TOKEN_KEY = 'zam_admin_token';
@@ -110,14 +110,81 @@ function Dashboard({ token, onLogout }) {
 
                 <div className="admin-tabs" role="tablist">
                     <button role="tab" aria-selected={tab === 'inventory'} onClick={() => setTab('inventory')}><Package size={16} /> Inventory ({products.length})</button>
+                    <button role="tab" aria-selected={tab === 'orders'} onClick={() => setTab('orders')}><ReceiptText size={16} /> Orders</button>
                     <button role="tab" aria-selected={tab === 'upload'} onClick={() => setTab('upload')}><Upload size={16} /> Upload product</button>
                 </div>
 
-                {tab === 'inventory'
+                {tab === 'orders'
+                    ? <Orders auth={auth} onAuthFail={handleAuthFail} />
+                    : tab === 'inventory'
                     ? <Inventory products={products} loading={loading} auth={auth} reload={load} onAuthFail={handleAuthFail} goUpload={() => setTab('upload')} />
                     : <UploadForm auth={auth} onAuthFail={handleAuthFail} onDone={() => { load(); setTab('inventory'); }} />}
             </div>
         </main>
+    );
+}
+
+const STATUS_OPTIONS = [
+    ['pending_payment', 'Awaiting payment'], ['processing', 'Processing'], ['shipped', 'Shipped'],
+    ['delivered', 'Delivered'], ['cancelled', 'Cancelled']
+];
+
+function Orders({ auth, onAuthFail }) {
+    const [orders, setOrders] = useState(null);
+    const [message, setMessage] = useState('');
+
+    const load = useCallback(async () => {
+        const res = await fetch('/api/orders', { headers: auth });
+        if (onAuthFail(res)) return;
+        setOrders(res.ok ? await res.json() : []);
+    }, [auth, onAuthFail]);
+
+    useEffect(() => { load(); }, [load]);
+
+    const setStatus = async (o, status) => {
+        const res = await fetch(`/api/orders/${o._id}/status`, {
+            method: 'PUT',
+            headers: { ...auth, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        if (onAuthFail(res)) return;
+        setMessage(res.ok ? `Order …${o._id.slice(-6).toUpperCase()} is now ${status.replace('_', ' ')}` : (await res.json()).message);
+        load();
+    };
+
+    if (orders === null) return <p className="muted">Loading orders…</p>;
+    if (!orders.length) return <div className="admin-card" style={{ textAlign: 'center' }}>No orders yet. Paid orders will appear here.</div>;
+
+    return (
+        <div className="admin-card" style={{ padding: 0 }}>
+            {message && <p className="admin-ok" role="status">{message}</p>}
+            <div style={{ overflowX: 'auto' }}>
+                <table className="admin-table" style={{ minWidth: 820 }}>
+                    <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {orders.map(o => (
+                            <tr key={o._id}>
+                                <td>…{o._id.slice(-6).toUpperCase()}<span className="muted small">{new Date(o.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span></td>
+                                <td>{o.user ? o.user.name : o.shippingAddress?.fullName || 'Unknown'}
+                                    <span className="muted small">{o.user?.email || o.shippingAddress?.email}</span>
+                                    <span className="muted small">{o.shippingAddress?.phone} · {o.shippingAddress?.city}</span></td>
+                                <td>{(o.orderItems || []).map((it, i) => <span key={i} className="small" style={{ display: 'block' }}>{it.name}{it.size ? ` (${it.size})` : ''} × {it.quantity}</span>)}</td>
+                                <td>₹{o.totalPrice.toFixed(2)}</td>
+                                <td>
+                                    <span style={{ color: o.isPaid ? 'var(--color-accent)' : '#e07a7a' }}>{o.isPaid ? 'Paid' : (o.transaction?.status === 'failed' ? 'Failed' : 'Unpaid')}</span>
+                                    {o.transaction?.gatewayPaymentId && <span className="muted small">{o.transaction.gatewayPaymentId}</span>}
+                                </td>
+                                <td>
+                                    <select value={o.status} onChange={e => setStatus(o, e.target.value)} aria-label="Order status" style={{ minWidth: 150 }}>
+                                        {STATUS_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                                    </select>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }
 
