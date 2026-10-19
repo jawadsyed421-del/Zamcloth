@@ -1,31 +1,29 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
 const multer = require('multer');
 const Product = require('../models/Product.cjs');
+const Image = require('../models/Image.cjs');
 const { requireAdmin } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
-
+// Photos are held in memory just long enough to save them to the database.
 const upload = multer({
-    storage: multer.diskStorage({
-        destination: UPLOAD_DIR,
-        filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + EXT[file.mimetype]),
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) =>
-        cb(EXT[file.mimetype] ? null : new Error('Only JPG, PNG or WebP photos are allowed'), !!EXT[file.mimetype]),
+        cb(TYPES.has(file.mimetype) ? null : new Error('Only JPG, PNG or WebP photos are allowed'), TYPES.has(file.mimetype)),
 });
 
-const removeFile = (imageUrl) => {
-    if (!imageUrl || !imageUrl.startsWith('/uploads/')) return;
-    fs.unlink(path.join(UPLOAD_DIR, path.basename(imageUrl)), () => { });
+const saveImage = async (file) => {
+    const img = await Image.create({ data: file.buffer, contentType: file.mimetype });
+    return `/api/images/${img._id}`;
+};
+
+const removeImage = async (imageUrl) => {
+    const match = /^\/api\/images\/([a-f0-9]{24})$/.exec(imageUrl || '');
+    if (match) await Image.deleteOne({ _id: match[1] }).catch(() => { });
 };
 
 const list = (v) => String(v || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -68,31 +66,34 @@ router.get('/:id', async (req, res) => {
 // Admin: create product with photo
 router.post('/', requireAdmin, upload.single('image'), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'Choose a photo to upload' });
+    let image;
     try {
-        const product = await Product.create({ ...fieldsFromBody(req.body), image: `/uploads/${req.file.filename}` });
+        image = await saveImage(req.file);
+        const product = await Product.create({ ...fieldsFromBody(req.body), image });
         res.status(201).json(product);
     } catch (error) {
-        removeFile(`/uploads/${req.file.filename}`);
+        await removeImage(image);
         res.status(400).json({ message: error.message });
     }
 });
 
 // Admin: update product (optionally replace photo)
 router.put('/:id', requireAdmin, upload.single('image'), async (req, res) => {
+    let newImage;
     try {
         const product = await Product.findById(req.params.id);
-        if (!product) {
-            if (req.file) removeFile(`/uploads/${req.file.filename}`);
-            return res.status(404).json({ message: 'Product not found' });
-        }
+        if (!product) return res.status(404).json({ message: 'Product not found' });
         const oldImage = product.image;
         product.set(fieldsFromBody(req.body));
-        if (req.file) product.image = `/uploads/${req.file.filename}`;
+        if (req.file) {
+            newImage = await saveImage(req.file);
+            product.image = newImage;
+        }
         await product.save();
-        if (req.file) removeFile(oldImage);
+        if (req.file) await removeImage(oldImage);
         res.json(product);
     } catch (error) {
-        if (req.file) removeFile(`/uploads/${req.file.filename}`);
+        await removeImage(newImage);
         res.status(400).json({ message: error.message });
     }
 });
@@ -102,7 +103,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     try {
         const product = await Product.findByIdAndDelete(req.params.id);
         if (!product) return res.status(404).json({ message: 'Product not found' });
-        removeFile(product.image);
+        await removeImage(product.image);
         res.json({ ok: true });
     } catch {
         res.status(500).json({ message: 'Server Error' });

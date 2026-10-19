@@ -7,6 +7,7 @@ const User = require('./models/User.cjs');
 const Admin = require('./models/Admin.cjs');
 const Product = require('./models/Product.cjs');
 const Order = require('./models/Order.cjs');
+const Image = require("./models/Image.cjs");
 const Transaction = require('./models/Transaction.cjs');
 const { syncAdminFromEnv } = require('./routes/adminRoutes.cjs');
 
@@ -30,11 +31,11 @@ const required = ['MONGO_URI', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'ADMIN_TOKEN_
         console.log(`OK      Connected to ${conn.connection.host} / database "${conn.connection.name}"`);
 
         // Create collections and indexes if they do not exist yet
-        await Promise.all([User, Admin, Product, Order, Transaction].map(m => m.createCollection().catch(() => { })));
-        await Promise.all([User, Admin, Product, Order, Transaction].map(m => m.syncIndexes()));
+        await Promise.all([User, Admin, Product, Order, Transaction, Image].map(m => m.createCollection().catch(() => { })));
+        await Promise.all([User, Admin, Product, Order, Transaction, Image].map(m => m.syncIndexes()));
         await syncAdminFromEnv();
 
-        for (const [name, model] of Object.entries({ users: User, admins: Admin, products: Product, orders: Order, transactions: Transaction })) {
+        for (const [name, model] of Object.entries({ users: User, admins: Admin, products: Product, images: Image, orders: Order, transactions: Transaction })) {
             console.log(`OK      ${name.padEnd(13)} ${await model.countDocuments()} records`);
         }
     } catch (error) {
