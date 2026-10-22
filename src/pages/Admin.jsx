@@ -297,7 +297,7 @@ function UploadForm({ auth, onAuthFail, onDone }) {
         <form onSubmit={submit} className="admin-card admin-form">
             <div className="photo-pick">
                 <label className="photo-drop">
-                    {preview ? <img src={preview} alt="Selected product preview" /> : <span><Upload size={28} /><br />Choose photo<br /><small>JPG, PNG or WebP, up to 5 MB</small></span>}
+                    {preview ? <img src={preview} alt="Selected product preview" /> : <span><Upload size={28} /><br />Choose photo<br /><small>JPG, PNG or WebP, up to 4 MB</small></span>}
                     <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setFile(e.target.files[0] || null)} />
                 </label>
             </div>

@@ -28,8 +28,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// Connect Database
-connectDB().then(() => require('./routes/adminRoutes.cjs').syncAdminFromEnv()).catch(e => console.error('Admin setup failed:', e.message));
+// Connect Database once; every /api request waits for it (works on Render and on Vercel serverless)
+let ready = null;
+const ensureDb = () => {
+    if (!ready) {
+        ready = connectDB()
+            .then(() => require('./routes/adminRoutes.cjs').syncAdminFromEnv())
+            .catch(e => { ready = null; throw e; });
+    }
+    return ready;
+};
+app.use('/api', async (req, res, next) => {
+    try {
+        await ensureDb();
+        next();
+    } catch (e) {
+        console.error('Database error:', e.message);
+        res.status(503).json({ message: 'Database is unavailable. Please try again shortly.' });
+    }
+});
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes.cjs'));
@@ -64,8 +81,13 @@ if (fs.existsSync(path.join(DIST, 'index.html'))) {
     app.get('/', (req, res) => res.send('API is running...'));
 }
 
-const PORT = process.env.PORT || 5000;
+module.exports = app;
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Run as a normal server (Render, local). On Vercel the app is imported by api/index.js instead.
+if (require.main === module) {
+    const PORT = process.env.PORT || 5000;
+    ensureDb().catch(e => { console.error(`Error: ${e.message}`); process.exit(1); });
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}

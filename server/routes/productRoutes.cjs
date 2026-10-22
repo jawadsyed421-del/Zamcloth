@@ -11,7 +11,7 @@ const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 // Photos are held in memory just long enough to save them to the database.
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 4 * 1024 * 1024 },
     fileFilter: (req, file, cb) =>
         cb(TYPES.has(file.mimetype) ? null : new Error('Only JPG, PNG or WebP photos are allowed'), TYPES.has(file.mimetype)),
 });
@@ -112,7 +112,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
 // Upload / validation errors
 router.use((err, req, res, next) => {
-    res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Photo must be under 5 MB' : err.message });
+    res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Photo must be under 4 MB' : err.message });
 });
 
 module.exports = router;
