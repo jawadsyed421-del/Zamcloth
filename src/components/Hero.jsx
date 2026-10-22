@@ -26,20 +26,6 @@ export default function Hero() {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     style={{ maxWidth: '800px' }}
                 >
-                    <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        style={{
-                            color: 'var(--color-accent)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.3em',
-                            marginBottom: '1.5rem',
-                            fontWeight: 500
-                        }}
-                    >
-                        ZAM CLOTH
-                    </motion.p>
                     <h1 style={{
                         fontSize: 'clamp(3rem, 8vw, 6rem)',
                         lineHeight: 1.1,

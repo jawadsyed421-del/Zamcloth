@@ -343,6 +343,19 @@ export const PAGES = {
         ],
     },
 
+    'company-information': {
+        heading: 'Company Information',
+        blocks: [
+            { kv: [
+                ['Brand', C.brand],
+                ['Legal Company', C.legalName],
+                ['Customer Support', C.phone],
+                ['Email', C.email],
+                ['Registered Office', C.address],
+            ] },
+        ],
+    },
+
     'legal-information': {
         heading: 'Legal Information',
         blocks: [

@@ -30,6 +30,7 @@ const LEGAL = [
     ['Cancellation Policy', '/cancellation-policy'],
     ['Grievance Redressal', '/grievance-redressal'],
     ['Legal Information', '/legal-information'],
+    ['Company Information', '/company-information'],
 ];
 
 function LinkList({ title, items }) {
@@ -104,12 +105,9 @@ export default function Footer() {
                 </div>
 
                 <div style={{ textAlign: 'center', paddingTop: '2rem', borderTop: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: '1.7' }}>
-                    <h4 style={{ ...headStyle, marginBottom: '1rem' }}>Company Information</h4>
-                    <p><strong>Brand:</strong> {C.brand} &nbsp;|&nbsp; <strong>Legal Company:</strong> {C.legalName}</p>
-                    <p><strong>Customer Support:</strong> {C.phone} &nbsp;|&nbsp; <strong>Email:</strong> {C.email}</p>
-                    <p style={{ marginTop: '0.5rem' }}><strong>Registered Office:</strong> {C.address}</p>
+                    <p><strong>Registered Office:</strong> {C.address}</p>
                     <p style={{ marginTop: '1.25rem', fontSize: '0.8rem', opacity: 0.8 }}>
-                        © 2026 Zamcloth Pvt Ltd. All rights reserved. <Link to="/admin" style={{ color: 'inherit', marginLeft: '0.75rem' }}>Admin</Link>
+                        © 2026 Zamcloth Private Limited. All rights reserved. <Link to="/admin" style={{ color: 'inherit', marginLeft: '0.75rem' }}>Admin</Link>
                     </p>
                 </div>
             </div>

@@ -177,7 +177,7 @@ button {
 .nav-left { display: flex; align-items: center; }
 .nav-right { display: flex; gap: 1.25rem; align-items: center; justify-content: flex-end; }
 .nav-logo { display: flex; align-items: center; gap: 0.6rem; justify-self: center; }
-.nav-brand { font-family: var(--font-heading); font-size: 1.4rem; letter-spacing: 0.06em; color: var(--color-text); white-space: nowrap; }
+.nav-brand { font-family: var(--font-heading); font-size: 1.9rem; font-weight: 700; letter-spacing: 0.06em; color: var(--color-text); white-space: nowrap; }
 .desktop-menu { display: flex; gap: 1.4rem; white-space: nowrap; }
 .menu-toggle { display: none; }
 
@@ -206,7 +206,7 @@ button {
 
 @media (max-width: 520px) {
   .nav-signin-text { display: none; }
-  .nav-brand { font-size: 1.1rem; }
+  .nav-brand { font-size: 1.35rem; }
   .nav-right { gap: 0.9rem; }
 }
 
