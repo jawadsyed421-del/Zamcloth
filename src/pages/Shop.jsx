@@ -3,6 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { Filter, X } from 'lucide-react';
 
+// "4-5Y" and "4–5 years" mean the same kids size
+const normSize = (sz) => String(sz).trim().replace(/^(\d+)\s*[-–]\s*(\d+)\s*(?:y|yrs?|years?)$/i, '$1–$2 years');
+
 export default function Shop() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [products, setProducts] = useState([]);
@@ -12,19 +15,18 @@ export default function Shop() {
     // Filter States
     const categoryParam = searchParams.get('category');
     const tagParam = searchParams.get('tag');
+    const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
 
     const [filters, setFilters] = useState({
         category: categoryParam || "All",
         subcategory: "All",
-        ageGroup: "All",
         priceRange: "All",
-        size: "All",
-        color: "All"
+        size: "All"
     });
 
     useEffect(() => {
         if (categoryParam) {
-            setFilters(prev => ({ ...prev, category: categoryParam }));
+            setFilters(prev => ({ ...prev, category: categoryParam, subcategory: 'All', size: 'All' }));
         }
     }, [categoryParam]);
 
@@ -34,10 +36,8 @@ export default function Shop() {
                 ...prev,
                 category: "All",
                 subcategory: "All",
-                ageGroup: "All",
                 priceRange: "All",
-                size: "All",
-                color: "All"
+                size: "All"
             }));
         }
     }, [tagParam]);
@@ -62,15 +62,15 @@ export default function Shop() {
     const categories = ["All", "Kids", "Women", "Men", "Accessories"];
 
     const subcategories = {
-        "Kids": ["All", "Boys", "Girls", "Ethnic Wear"],
+        "Kids": ["All", "Boys", "Girls"],
         "Women": ["All", "Kurtis", "Dresses", "Co-ord Sets", "Ethnic Wear"],
-        "Men": ["All", "Shirts", "T-Shirts", "Jeans"],
+        "Men": ["All", "Jeans", "T-Shirts"],
         "Accessories": ["All", "Perfumes", "Wallets"]
     };
 
-    const ageGroups = ["All", "2-3Y", "4-5Y", "6-7Y", "8-9Y", "10-11Y"];
-    const sizes = ["All", "XS", "S", "M", "L", "XL", "XXL"];
-    const colors = ["All", "Red", "Blue", "Green", "Yellow", "Pink", "Black", "White", "Beige", "Purple"];
+    const kidsSizes = ["All", "2–3 years", "3–4 years", "4–5 years", "5–6 years", "6–7 years", "7–8 years", "8–9 years", "9–10 years", "10–11 years", "11–12 years"];
+    const adultSizes = ["All", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"];
+    const sizes = filters.category === 'Kids' ? kidsSizes : adultSizes;
     const priceRanges = ["All", "Under 500", "500 - 1000", "1000 - 2000", "Above 2000"];
 
     // Filtering Logic
@@ -84,14 +84,11 @@ export default function Shop() {
         // Subcategory Filter
         if (filters.subcategory !== "All" && product.subcategory !== filters.subcategory) return false;
 
-        // Age Group Filter (Only for Kids)
-        if (filters.category === "Kids" && filters.ageGroup !== "All" && product.ageGroup !== filters.ageGroup) return false;
+        // Search
+        if (searchQuery && !`${product.name} ${product.description} ${product.category} ${product.subcategory}`.toLowerCase().includes(searchQuery)) return false;
 
-        // Size Filter
-        if (filters.size !== "All" && product.sizes && !product.sizes.includes(filters.size)) return false;
-
-        // Color Filter
-        if (filters.color !== "All" && product.colors && !product.colors.includes(filters.color)) return false;
+        // Size Filter (old "4-5Y" style sizes are treated the same as "4–5 years")
+        if (filters.size !== "All" && product.sizes && !product.sizes.some(sz => normSize(sz) === normSize(filters.size))) return false;
 
         // Price Filter
         if (filters.priceRange !== "All") {
@@ -110,15 +107,15 @@ export default function Shop() {
         // Reset sub filters if main category changes
         if (key === 'category') {
             setSearchParams({ category: value === 'All' ? '' : value });
-            setFilters(prev => ({ ...prev, subcategory: 'All', ageGroup: 'All' }));
+            setFilters(prev => ({ ...prev, subcategory: 'All', size: 'All' }));
         }
     };
 
     // Coming Soon Logic
-    if (filters.category === 'Men' || filters.category === 'Accessories') {
+    if (filters.category === 'Accessories') {
         return (
             <div className="container section" style={{
-                marginTop: '12rem',
+                marginTop: '9rem',
                 minHeight: '50vh',
                 display: 'flex',
                 flexDirection: 'column',
@@ -168,7 +165,7 @@ export default function Shop() {
     }
 
     return (
-        <div className="container section" style={{ marginTop: '13rem' }}>
+        <div className="container section" style={{ marginTop: '9rem' }}>
             <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem', textAlign: 'center' }}>
                 {filters.category === 'All' ? 'Our Collection' : `${filters.category} Collection`}
             </h1>
@@ -201,7 +198,7 @@ export default function Shop() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h3 style={{ fontSize: '1.2rem' }}>Filters</h3>
                         {/* Clear Filters */}
-                        <button onClick={() => setFilters({ category: "All", subcategory: "All", ageGroup: "All", priceRange: "All", size: "All", color: "All" })} style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textDecoration: 'underline' }}>Clear All</button>
+                        <button onClick={() => setFilters({ category: "All", subcategory: "All", priceRange: "All", size: "All" })} style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textDecoration: 'underline' }}>Clear All</button>
                     </div>
 
                     {/* Category */}
@@ -222,16 +219,6 @@ export default function Shop() {
                         </div>
                     )}
 
-                    {/* Age Group (Kids Only) */}
-                    {filters.category === 'Kids' && (
-                        <div className="filter-group">
-                            <label>Age Group</label>
-                            <select value={filters.ageGroup} onChange={(e) => handleFilterChange('ageGroup', e.target.value)}>
-                                {ageGroups.map(a => <option key={a} value={a}>{a}</option>)}
-                            </select>
-                        </div>
-                    )}
-
                     {/* Price Range */}
                     <div className="filter-group">
                         <label>Price</label>
@@ -245,14 +232,6 @@ export default function Shop() {
                         <label>Size</label>
                         <select value={filters.size} onChange={(e) => handleFilterChange('size', e.target.value)}>
                             {sizes.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Color */}
-                    <div className="filter-group">
-                        <label>Color</label>
-                        <select value={filters.color} onChange={(e) => handleFilterChange('color', e.target.value)}>
-                            {colors.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
 
@@ -278,7 +257,7 @@ export default function Shop() {
                         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
                             <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>No products match your filters.</p>
                             <button
-                                onClick={() => setFilters({ category: "All", subcategory: "All", ageGroup: "All", priceRange: "All", size: "All", color: "All" })}
+                                onClick={() => setFilters({ category: "All", subcategory: "All", priceRange: "All", size: "All" })}
                                 className="btn-accent"
                             >
                                 Clear Filters

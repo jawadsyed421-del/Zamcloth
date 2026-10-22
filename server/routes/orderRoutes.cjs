@@ -7,13 +7,16 @@ const { requireUser, requireAdmin, requireAny } = require('../middleware/auth.cj
 
 const router = express.Router();
 
+const PREPAID_DISCOUNT_PERCENT = 5;
+const COD_ADVANCE = 99;
 const STATUSES = ['pending_payment', 'processing', 'shipped', 'delivered', 'cancelled'];
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 
 // Customer: place an order. Prices and stock come from the database, never from the browser.
 router.post('/', requireUser, async (req, res) => {
     try {
-        const { items, shippingAddress: a = {} } = req.body || {};
+        const { items, shippingAddress: a = {}, paymentMethod } = req.body || {};
+        const partialCod = paymentMethod === 'Partial COD';
         if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
             return res.status(400).json({ message: 'Your bag is empty' });
         }
@@ -39,9 +42,19 @@ router.post('/', requireUser, async (req, res) => {
             itemsPrice += product.price * qty;
         }
 
+        // Extra 5% off for prepaid (online) orders only
+        const discountPrice = partialCod ? 0 : Math.round(itemsPrice * PREPAID_DISCOUNT_PERCENT) / 100;
+        const totalPrice = itemsPrice - discountPrice;
+        if (partialCod && totalPrice <= COD_ADVANCE) {
+            return res.status(400).json({ message: `Partial COD is available on orders above ₹${COD_ADVANCE}` });
+        }
+
         const order = await Order.create({
             user: req.auth.sub, orderItems, shippingAddress: address,
-            itemsPrice, taxPrice: 0, shippingPrice: 0, totalPrice: itemsPrice,
+            paymentMethod: partialCod ? 'Partial COD' : 'Razorpay',
+            itemsPrice, discountPrice, taxPrice: 0, shippingPrice: 0, totalPrice,
+            advanceAmount: partialCod ? COD_ADVANCE : 0,
+            codBalance: partialCod ? totalPrice - COD_ADVANCE : 0,
         });
         res.status(201).json(order);
     } catch (error) {

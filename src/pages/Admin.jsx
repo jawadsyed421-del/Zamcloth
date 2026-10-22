@@ -5,10 +5,15 @@ import SafeImage from '../components/SafeImage';
 
 const TOKEN_KEY = 'zam_admin_token';
 const SUBCATEGORIES = {
-    Women: ['Kurtis', 'Dresses', 'Co-ord Sets', 'Ethnic Wear', 'T-Shirts', 'Jeans'],
-    Kids: ['Boys', 'Girls', 'Ethnic Wear', 'T-Shirts', 'Jeans']
+    Women: ['Kurtis', 'Dresses', 'Co-ord Sets', 'Ethnic Wear'],
+    Kids: ['Boys', 'Girls'],
+    Men: ['Jeans', 'T-Shirts']
 };
-const AGE_GROUPS = ['2-3Y', '4-5Y', '6-7Y', '8-9Y', '10-11Y'];
+const SIZE_DEFAULTS = {
+    Women: 'XS, S, M, L, XL, XXL',
+    Men: 'S, M, L, XL, XXL',
+    Kids: '2–3 years, 3–4 years, 4–5 years, 5–6 years, 6–7 years, 7–8 years, 8–9 years, 9–10 years, 10–11 years, 11–12 years'
+};
 
 const getToken = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
 const setToken = (t) => { try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch { /* storage unavailable */ } };
@@ -171,7 +176,8 @@ function Orders({ auth, onAuthFail }) {
                                 <td>{(o.orderItems || []).map((it, i) => <span key={i} className="small" style={{ display: 'block' }}>{it.name}{it.size ? ` (${it.size})` : ''} × {it.quantity}</span>)}</td>
                                 <td>₹{o.totalPrice.toFixed(2)}</td>
                                 <td>
-                                    <span style={{ color: o.isPaid ? 'var(--color-accent)' : '#e07a7a' }}>{o.isPaid ? 'Paid' : (o.transaction?.status === 'failed' ? 'Failed' : 'Unpaid')}</span>
+                                    <span style={{ color: o.isPaid ? 'var(--color-accent)' : '#e07a7a' }}>{o.isPaid ? (o.paymentMethod === 'Partial COD' ? 'Advance paid' : 'Paid') : (o.transaction?.status === 'failed' ? 'Failed' : 'Unpaid')}</span>
+                                    {o.paymentMethod === 'Partial COD' && <span className="muted small">COD balance ₹{(o.codBalance || 0).toFixed(2)}</span>}
                                     {o.transaction?.gatewayPaymentId && <span className="muted small">{o.transaction.gatewayPaymentId}</span>}
                                 </td>
                                 <td>
@@ -301,17 +307,12 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                 <div className="row">
                     <label>Section
                         <select name="category" value={category} onChange={e => setCategory(e.target.value)}>
-                            <option>Women</option><option>Kids</option>
+                            <option>Women</option><option>Kids</option><option>Men</option>
                         </select>
                     </label>
                     <label>Type
                         <select name="subcategory" key={category}>{SUBCATEGORIES[category].map(s => <option key={s}>{s}</option>)}</select>
                     </label>
-                    {category === 'Kids' && (
-                        <label>Age group
-                            <select name="ageGroup">{AGE_GROUPS.map(a => <option key={a}>{a}</option>)}</select>
-                        </label>
-                    )}
                 </div>
                 <label>Description<textarea name="description" required rows={3} maxLength={500} /></label>
                 <div className="row">
@@ -319,8 +320,7 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                     <label>Stock<input name="stock" type="number" min="0" defaultValue="1" required /></label>
                 </div>
                 <div className="row">
-                    <label>Sizes (comma separated)<input name="sizes" required defaultValue={category === 'Kids' ? '2-3Y, 4-5Y, 6-7Y' : 'S, M, L, XL'} key={`s${category}`} /></label>
-                    <label>Colors (comma separated)<input name="colors" placeholder="e.g. White, Red" /></label>
+                    <label>Sizes (comma separated)<input name="sizes" required defaultValue={SIZE_DEFAULTS[category]} key={`s${category}`} /></label>
                 </div>
                 <div className="row checks">
                     <label className="check"><input type="checkbox" name="isNew" /> Mark as new</label>

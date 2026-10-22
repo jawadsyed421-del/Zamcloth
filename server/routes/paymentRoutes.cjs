@@ -26,14 +26,16 @@ router.post('/create', requireUser, async (req, res) => {
         if (order.isPaid) return res.status(409).json({ message: 'This order is already paid' });
 
         const instance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+        // Partial COD orders only pay the advance online; the balance is collected at delivery
+        const payNow = order.paymentMethod === 'Partial COD' ? order.advanceAmount : order.totalPrice;
         const gatewayOrder = await instance.orders.create({
-            amount: Math.round(order.totalPrice * 100), // paise
+            amount: Math.round(payNow * 100), // paise
             currency: 'INR',
             receipt: String(order._id),
         });
 
         await Transaction.create({
-            order: order._id, user: order.user, gatewayOrderId: gatewayOrder.id, amount: order.totalPrice, currency: 'INR',
+            order: order._id, user: order.user, gatewayOrderId: gatewayOrder.id, amount: payNow, currency: 'INR',
         });
         res.json(gatewayOrder);
     } catch (error) {

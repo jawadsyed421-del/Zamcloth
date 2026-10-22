@@ -21,7 +21,10 @@ const orderSchema = mongoose.Schema({
         postalCode: { type: String, required: true },
         country: { type: String, required: true, default: 'India' },
     },
-    paymentMethod: { type: String, required: true, default: 'Razorpay' },
+    paymentMethod: { type: String, required: true, enum: ['Razorpay', 'Partial COD'], default: 'Razorpay' },
+    discountPrice: { type: Number, default: 0 }, // 5% prepaid discount
+    advanceAmount: { type: Number, default: 0 }, // paid online for Partial COD
+    codBalance: { type: Number, default: 0 }, // collected at delivery for Partial COD
     itemsPrice: { type: Number, required: true, default: 0 },
     taxPrice: { type: Number, required: true, default: 0 },
     shippingPrice: { type: Number, required: true, default: 0 },

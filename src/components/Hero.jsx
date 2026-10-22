@@ -38,24 +38,30 @@ export default function Hero() {
                             fontWeight: 500
                         }}
                     >
-                        Spring / Summer 2026
+                        ZAM CLOTH
                     </motion.p>
                     <h1 style={{
                         fontSize: 'clamp(3rem, 8vw, 6rem)',
                         lineHeight: 1.1,
-                        marginBottom: '2rem',
+                        marginBottom: '1.25rem',
                         color: '#ffffff',
                         textShadow: '0 4px 24px rgba(0,0,0,0.6)'
                     }}>
-                        Redefining <br /> Digital Luxury.
+                        Style for Every <br /> Generation.
                     </h1>
+                    <p style={{ color: '#f5f5f5', fontSize: 'clamp(1rem, 2.2vw, 1.35rem)', marginBottom: '1rem', maxWidth: '560px' }}>
+                        Discover everyday fashion for men, women and kids.
+                    </p>
+                    <p style={{ color: 'var(--color-accent)', fontSize: 'clamp(1.1rem, 2.6vw, 1.6rem)', fontWeight: 600, marginBottom: '2rem' }}>
+                        Affordable Fashion. Premium Feel.
+                    </p>
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.8 }}
                     >
                         <Link to="/shop" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '1rem' }}>
-                            Shop Collection <ArrowRight size={20} />
+                            Explore Collections <ArrowRight size={20} />
                         </Link>
                     </motion.div>
                 </motion.div>

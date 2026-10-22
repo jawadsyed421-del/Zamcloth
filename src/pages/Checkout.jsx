@@ -3,6 +3,7 @@ import { useCart } from '../context/CartContext';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { CheckCircle, Shield } from 'lucide-react';
+import { COD_ADVANCE, PREPAID_DISCOUNT_PERCENT } from '../data/company';
 
 export default function Checkout() {
     const { cartItems, cartTotal, clearCart } = useCart();
@@ -10,16 +11,22 @@ export default function Checkout() {
     const [error, setError] = useState('');
     const [step, setStep] = useState('shipping'); // shipping, payment, success
     const [loading, setLoading] = useState(false);
+    const [payMode, setPayMode] = useState('online'); // online | cod
     const [shippingAddress, setShippingAddress] = useState({
         address: '', city: '', postalCode: '', firstName: '', lastName: '', email: user?.email || '', phone: user?.phone || ''
     });
+
+    const prepaidDiscount = payMode === 'online' ? Math.round(cartTotal * PREPAID_DISCOUNT_PERCENT) / 100 : 0;
+    const orderTotal = cartTotal - prepaidDiscount;
+    const codAllowed = orderTotal > COD_ADVANCE;
+    const payNow = payMode === 'cod' ? COD_ADVANCE : orderTotal;
 
     if (authLoading) return <div className="container section" style={{ minHeight: '60vh' }} />;
     if (!user) return <Navigate to="/login?next=/checkout" replace />;
 
     if (cartItems.length === 0 && step !== 'success') {
         return (
-            <div className="container section" style={{ textAlign: 'center', marginTop: '10rem' }}>
+            <div className="container section" style={{ textAlign: 'center', marginTop: '9rem' }}>
                 <h2>Your bag is currently empty.</h2>
                 <Link to="/shop" className="btn-primary" style={{ marginTop: '1rem' }}>Continue Shopping</Link>
             </div>
@@ -45,6 +52,7 @@ export default function Checkout() {
         try {
             // 1. Save the order. The server prices it from the database.
             const orderRes = await post('/api/orders', {
+                paymentMethod: payMode === 'cod' ? 'Partial COD' : 'Razorpay',
                 items: cartItems.map(item => ({ productId: item.id, size: item.size, quantity: item.quantity })),
                 shippingAddress: {
                     fullName: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
@@ -110,7 +118,7 @@ export default function Checkout() {
 
     if (step === 'success') {
         return (
-            <div className="container section" style={{ textAlign: 'center', marginTop: '10rem', maxWidth: '600px' }}>
+            <div className="container section" style={{ textAlign: 'center', marginTop: '9rem', maxWidth: '600px' }}>
                 <CheckCircle size={64} color="var(--color-accent)" style={{ margin: '0 auto 1.5rem' }} />
                 <h1 style={{ marginBottom: '1rem' }}>Order Confirmed!</h1>
                 <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>
@@ -123,7 +131,7 @@ export default function Checkout() {
     }
 
     return (
-        <div className="container section" style={{ marginTop: '13rem' }}>
+        <div className="container section" style={{ marginTop: '9rem' }}>
             <h1 style={{ fontSize: '2.5rem', marginBottom: '3rem', textAlign: 'center' }}>Checkout</h1>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '4rem' }}>
@@ -134,6 +142,9 @@ export default function Checkout() {
                         <span style={{ color: step === 'shipping' ? 'var(--color-text)' : 'inherit', borderBottom: step === 'shipping' ? '1px solid var(--color-accent)' : 'none' }}>1. Shipping</span>
                         <span>&gt;</span>
                         <span style={{ color: step === 'payment' ? 'var(--color-text)' : 'inherit', borderBottom: step === 'payment' ? '1px solid var(--color-accent)' : 'none' }}>2. Payment</span>
+                    </div>
+                    <div style={{ background: '#111', color: '#fff', textAlign: 'center', padding: '0.6rem', fontSize: '0.85rem', fontWeight: 600, marginBottom: '2rem', borderRadius: '4px' }}>
+                        Get an additional {PREPAID_DISCOUNT_PERCENT}% OFF on prepaid orders!
                     </div>
 
                     {step === 'shipping' ? (
@@ -157,14 +168,26 @@ export default function Checkout() {
                     ) : (
                         <form onSubmit={handlePayment}>
                             <h2 style={{ marginBottom: '1.5rem' }}>Payment Method</h2>
-                            <div style={{ display: 'grid', gap: '1.5rem', padding: '2rem', border: '1px solid var(--color-border)', borderRadius: '4px', marginBottom: '2rem' }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-                                    <Shield size={20} color="var(--color-accent)" />
-                                    <span style={{ fontSize: '0.9rem' }}>Secured by Razorpay</span>
+                            <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
+                                <label style={optionStyle(payMode === 'online')}>
+                                    <input type="radio" name="payMode" checked={payMode === 'online'} onChange={() => setPayMode('online')} />
+                                    <span>
+                                        <strong>Pay online ({PREPAID_DISCOUNT_PERCENT}% extra off)</strong>
+                                        <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>UPI, cards and net banking via Razorpay. Pay ₹{(cartTotal - Math.round(cartTotal * PREPAID_DISCOUNT_PERCENT) / 100).toFixed(2)} now.</span>
+                                    </span>
+                                </label>
+                                <label style={{ ...optionStyle(payMode === 'cod'), opacity: codAllowed ? 1 : 0.5 }}>
+                                    <input type="radio" name="payMode" checked={payMode === 'cod'} disabled={!codAllowed} onChange={() => setPayMode('cod')} />
+                                    <span>
+                                        <strong>Partial Cash on Delivery</strong>
+                                        <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                            Pay ₹{COD_ADVANCE} online now and ₹{Math.max(0, cartTotal - COD_ADVANCE).toFixed(2)} at delivery. The advance is part of your total, not an extra fee. No prepaid discount.
+                                        </span>
+                                    </span>
+                                </label>
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                    <Shield size={18} color="var(--color-accent)" /> Secured by Razorpay
                                 </div>
-                                <p style={{ color: 'var(--color-text-muted)' }}>
-                                    You will be redirected to the Razorpay secure gateway to complete your purchase.
-                                </p>
                             </div>
                             {error && <p role="alert" style={{ color: '#e07a7a', marginBottom: '1rem' }}>{error}</p>}
                             <button
@@ -173,7 +196,7 @@ export default function Checkout() {
                                 className="btn-primary"
                                 style={{ width: '100%', padding: '1.2rem', opacity: loading ? 0.7 : 1 }}
                             >
-                                {loading ? 'Processing...' : `Pay ₹${cartTotal.toFixed(2)}`}
+                                {loading ? 'Processing...' : `Pay ₹${payNow.toFixed(2)}${payMode === 'cod' ? ' now' : ''}`}
                             </button>
                             <button
                                 type="button"
@@ -197,9 +220,17 @@ export default function Checkout() {
                             </div>
                         ))}
                     </div>
-                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 600 }}>
-                        <span>Total</span>
-                        <span>₹{cartTotal.toFixed(2)}</span>
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem', display: 'grid', gap: '0.5rem', fontSize: '0.95rem' }}>
+                        <div style={rowStyle}><span>Subtotal</span><span>₹{cartTotal.toFixed(2)}</span></div>
+                        {prepaidDiscount > 0 && <div style={{ ...rowStyle, color: 'var(--color-accent)' }}><span>Prepaid discount ({PREPAID_DISCOUNT_PERCENT}%)</span><span>-₹{prepaidDiscount.toFixed(2)}</span></div>}
+                        <div style={rowStyle}><span>Shipping</span><span>Free</span></div>
+                        <div style={{ ...rowStyle, borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', marginTop: '0.25rem', fontSize: '1.2rem', fontWeight: 600 }}><span>Total</span><span>₹{orderTotal.toFixed(2)}</span></div>
+                        {payMode === 'cod' && step === 'payment' && (
+                            <>
+                                <div style={rowStyle}><span>Pay now</span><span>₹{COD_ADVANCE.toFixed(2)}</span></div>
+                                <div style={rowStyle}><span>Pay on delivery</span><span>₹{(orderTotal - COD_ADVANCE).toFixed(2)}</span></div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -216,3 +247,9 @@ const inputStyle = {
     outline: 'none',
     fontSize: '0.9rem'
 };
+
+const rowStyle = { display: 'flex', justifyContent: 'space-between' };
+const optionStyle = (active) => ({
+    display: 'flex', gap: '1rem', alignItems: 'flex-start', padding: '1.2rem', cursor: 'pointer',
+    border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`, borderRadius: '4px'
+});

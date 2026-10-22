@@ -14,6 +14,7 @@ import SizeGuide from './pages/SizeGuide';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 import Account from './pages/Account';
+import PolicyPage from './pages/PolicyPage';
 
 function Layout() {
   const isAdmin = useLocation().pathname.startsWith('/admin');
@@ -31,6 +32,7 @@ function Layout() {
         <Route path="/login" element={<Auth mode="login" />} />
         <Route path="/register" element={<Auth mode="register" />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/:slug" element={<PolicyPage />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
       {!isAdmin && <Footer />}

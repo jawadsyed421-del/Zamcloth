@@ -56,6 +56,7 @@ export default function Account() {
                             <div style={{ textAlign: 'right' }}>
                                 <span style={{ color: o.status === 'cancelled' ? '#e07a7a' : 'var(--color-accent)' }}>{STATUS_LABEL[o.status]}</span>
                                 <p style={{ fontWeight: 500 }}>₹{o.totalPrice.toFixed(2)}</p>
+                                {o.paymentMethod === 'Partial COD' && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Pay ₹{(o.codBalance || 0).toFixed(2)} on delivery</p>}
                             </div>
                         </header>
                         <div style={{ display: 'grid', gap: '0.8rem' }}>

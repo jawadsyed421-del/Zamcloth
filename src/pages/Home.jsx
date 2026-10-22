@@ -109,15 +109,20 @@ export default function Home() {
                     padding: '4rem 0'
                 }}>
                     <span style={{ color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '1.5rem', fontWeight: 600 }}>Our Philosophy</span>
-                    <h2 style={{ fontSize: '3.5rem', marginBottom: '2.5rem', fontFamily: 'var(--font-heading)', lineHeight: 1.2 }}>
-                        We believe style is a<br /> form of silence.
+                    <h2 style={{ fontSize: 'clamp(2.2rem, 6vw, 3.5rem)', marginBottom: '2.5rem', fontFamily: 'var(--font-heading)', lineHeight: 1.2 }}>
+                        Style That Speaks<br /> Without Words
                     </h2>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '1.2rem', lineHeight: '1.9', marginBottom: '4rem' }}>
-                        ZamCloth began with a simple idea: to create clothing that speaks for itself.
-                        Meticulously crafted, intentionally designed, and ethically sourced.
-                        Every piece tells a story of craftsmanship and timeless elegance.
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '1.2rem', lineHeight: '1.9', marginBottom: '1.5rem' }}>
+                        At ZAM, we believe great style begins with simplicity. We bring together contemporary fashion,
+                        everyday comfort, and thoughtful design at prices that make sense.
                     </p>
-                    <Link to="/shop" className="btn-accent" style={{ padding: '1.2rem 3rem' }}>Discover the Brand</Link>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '1.2rem', lineHeight: '1.9', marginBottom: '1.5rem' }}>
+                        Our goal is simple: to make looking good feel effortless and affordable.
+                    </p>
+                    <p style={{ color: 'var(--color-accent)', fontSize: '1.3rem', fontWeight: 600, marginBottom: '3rem' }}>
+                        ZAM — Affordable Fashion. Premium Feel.
+                    </p>
+                    <Link to="/about-us" className="btn-accent" style={{ padding: '1.2rem 3rem' }}>Discover the Brand</Link>
                 </div>
             </section>
         </div>
