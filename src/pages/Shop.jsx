@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { normSize } from '../data/sizes';
 import { Filter, X } from 'lucide-react';
-
-// "4-5Y" and "4–5 years" mean the same kids size
-const normSize = (sz) => String(sz).trim().replace(/^(\d+)\s*[-–]\s*(\d+)\s*(?:y|yrs?|years?)$/i, '$1–$2 years');
 
 export default function Shop() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -244,11 +242,12 @@ export default function Shop() {
                     ) : filteredProducts.length > 0 ? (
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                            gap: '2rem'
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                            gap: '2.5rem 2rem',
+                            alignItems: 'start'
                         }}>
                             {filteredProducts.map(product => (
-                                <div key={product._id} style={{ height: '420px' }}>
+                                <div key={product._id}>
                                     <ProductCard product={{ ...product, id: product._id }} />
                                 </div>
                             ))}

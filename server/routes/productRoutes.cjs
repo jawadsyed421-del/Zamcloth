@@ -6,12 +6,13 @@ const { requireAdmin } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 
+const MAX_PHOTOS = 6;
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 // Photos are held in memory just long enough to save them to the database.
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 4 * 1024 * 1024 },
+    limits: { fileSize: 4 * 1024 * 1024, files: MAX_PHOTOS },
     fileFilter: (req, file, cb) =>
         cb(TYPES.has(file.mimetype) ? null : new Error('Only JPG, PNG or WebP photos are allowed'), TYPES.has(file.mimetype)),
 });
@@ -63,37 +64,39 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Admin: create product with photo
-router.post('/', requireAdmin, upload.single('image'), async (req, res) => {
-    if (!req.file) return res.status(400).json({ message: 'Choose a photo to upload' });
-    let image;
+// Admin: create product with one or several photos (the first is the main photo)
+router.post('/', requireAdmin, upload.array('images', MAX_PHOTOS), async (req, res) => {
+    const files = req.files || [];
+    if (files.length === 0) return res.status(400).json({ message: 'Choose at least one photo to upload' });
+    const saved = [];
     try {
-        image = await saveImage(req.file);
-        const product = await Product.create({ ...fieldsFromBody(req.body), image });
+        for (const f of files) saved.push(await saveImage(f));
+        const product = await Product.create({ ...fieldsFromBody(req.body), image: saved[0], images: saved });
         res.status(201).json(product);
     } catch (error) {
-        await removeImage(image);
+        await Promise.all(saved.map(removeImage));
         res.status(400).json({ message: error.message });
     }
 });
 
-// Admin: update product (optionally replace photo)
-router.put('/:id', requireAdmin, upload.single('image'), async (req, res) => {
-    let newImage;
+// Admin: update product (new photos, if sent, replace the old gallery)
+router.put('/:id', requireAdmin, upload.array('images', MAX_PHOTOS), async (req, res) => {
+    const saved = [];
     try {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: 'Product not found' });
-        const oldImage = product.image;
+        const oldPhotos = [product.image, ...(product.images || [])];
         product.set(fieldsFromBody(req.body));
-        if (req.file) {
-            newImage = await saveImage(req.file);
-            product.image = newImage;
+        if (req.files?.length) {
+            for (const f of req.files) saved.push(await saveImage(f));
+            product.image = saved[0];
+            product.images = saved;
         }
         await product.save();
-        if (req.file) await removeImage(oldImage);
+        if (saved.length) await Promise.all([...new Set(oldPhotos)].map(removeImage));
         res.json(product);
     } catch (error) {
-        await removeImage(newImage);
+        await Promise.all(saved.map(removeImage));
         res.status(400).json({ message: error.message });
     }
 });
@@ -103,7 +106,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     try {
         const product = await Product.findByIdAndDelete(req.params.id);
         if (!product) return res.status(404).json({ message: 'Product not found' });
-        await removeImage(product.image);
+        await Promise.all([...new Set([product.image, ...(product.images || [])])].map(removeImage));
         res.json({ ok: true });
     } catch {
         res.status(500).json({ message: 'Server Error' });
@@ -112,7 +115,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
 // Upload / validation errors
 router.use((err, req, res, next) => {
-    res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Photo must be under 4 MB' : err.message });
+    res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Each photo must be under 4 MB' : err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE' ? `You can upload up to ${MAX_PHOTOS} photos` : err.message });
 });
 
 module.exports = router;

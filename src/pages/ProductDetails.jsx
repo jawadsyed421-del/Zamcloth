@@ -1,8 +1,11 @@
-import SafeImage from '../components/SafeImage';
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingBag, ArrowLeft, Truck, RefreshCw, ShieldCheck, Zap, Ruler } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import SizeChartModal from '../components/SizeChartModal';
+import SizeChip from '../components/SizeChip';
+import ProductGallery from '../components/ProductGallery';
+import { sizeInfo } from '../data/sizes';
 
 export default function ProductDetails() {
     const { id } = useParams();
@@ -11,6 +14,7 @@ export default function ProductDetails() {
     const [selectedSize, setSelectedSize] = useState('');
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showChart, setShowChart] = useState(false);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -42,13 +46,9 @@ export default function ProductDetails() {
             </button>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '4rem' }}>
-                {/* Image */}
-                <div style={{ height: '600px', backgroundColor: 'var(--color-bg-secondary)' }}>
-                    <SafeImage
-                        src={product.image}
-                        alt={product.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
+                {/* Photos */}
+                <div style={{ minWidth: 0 }}>
+                    <ProductGallery images={product.images?.length ? product.images : [product.image]} name={product.name} />
                 </div>
 
                 {/* Info */}
@@ -65,25 +65,19 @@ export default function ProductDetails() {
 
                     <div style={{ marginBottom: '2rem' }}>
                         <span style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
-                            <span>SIZE {selectedSize && <strong style={{ color: 'var(--color-text)' }}>{selectedSize}</strong>}</span>
-                            <Link to="/size-guide" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--color-accent)', textDecoration: 'underline' }}><Ruler size={16} /> Size Chart</Link>
+                            <span>SIZE {selectedSize && <strong style={{ color: 'var(--color-text)' }}>{(() => { const i = sizeInfo(selectedSize, product.category, product.subcategory); return i.name ? `${i.code} – ${i.name}` : i.code; })()}</strong>}</span>
+                            <button type="button" onClick={() => setShowChart(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--color-accent)', textDecoration: 'underline' }}><Ruler size={16} /> Size Chart</button>
                         </span>
                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                             {(product.sizes?.length ? product.sizes : ['S', 'M', 'L', 'XL']).map(size => (
-                                <button
+                                <SizeChip
                                     key={size}
+                                    size={size}
+                                    category={product.category}
+                                    subcategory={product.subcategory}
+                                    selected={size === selectedSize}
                                     onClick={() => setSelectedSize(size)}
-                                    style={{
-                                        minWidth: '45px', height: '45px', padding: '0 0.9rem',
-                                        border: size === selectedSize ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
-                                        backgroundColor: size === selectedSize ? 'var(--color-accent)' : 'transparent',
-                                        color: size === selectedSize ? 'var(--color-bg)' : 'var(--color-text)',
-                                        fontSize: '0.9rem',
-                                        transition: 'all 0.2s'
-                                    }}
-                                >
-                                    {size}
-                                </button>
+                                />
                             ))}
                         </div>
                     </div>
@@ -121,6 +115,7 @@ export default function ProductDetails() {
                     </div>
                 </div>
             </div>
+            {showChart && <SizeChartModal category={product.category} subcategory={product.subcategory} onClose={() => setShowChart(false)} />}
         </div>
     );
 }

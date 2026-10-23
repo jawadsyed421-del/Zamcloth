@@ -9,7 +9,8 @@ const productSchema = mongoose.Schema({
     ageGroup: { type: String }, // For Kids: "2-3Y", "4-5Y", etc.
     sizes: [{ type: String }],
     colors: [{ type: String }],
-    image: { type: String, required: true },
+    image: { type: String, required: true }, // main photo (first of images)
+    images: [{ type: String }], // all photos, in display order
     stock: { type: Number, default: 0, min: 0 },
     isNew: { type: Boolean, default: false },
     isTrending: { type: Boolean, default: false },
