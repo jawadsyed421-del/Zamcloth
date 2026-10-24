@@ -38,6 +38,7 @@ const orderSchema = mongoose.Schema({
         default: 'pending_payment',
     },
     deliveredAt: { type: Date },
+    emailSentAt: { type: Date }, // set once the invoice and owner alert have been emailed
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

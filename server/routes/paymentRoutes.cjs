@@ -5,6 +5,7 @@ const Order = require('../models/Order.cjs');
 const Product = require('../models/Product.cjs');
 const Transaction = require('../models/Transaction.cjs');
 const { requireUser, requireAdmin, safeEqual } = require('../middleware/auth.cjs');
+const { notifyOrderPaid } = require('../utils/mailer.cjs');
 
 const router = express.Router();
 
@@ -68,6 +69,7 @@ const settle = async (transaction, payment) => {
     for (const item of order.orderItems) {
         await Product.updateOne({ _id: item.product, stock: { $gte: item.quantity } }, { $inc: { stock: -item.quantity } });
     }
+    await notifyOrderPaid(order, won).catch(e => console.error('Order email error:', e.message));
     return true;
 };
 
@@ -158,6 +160,7 @@ router.post('/verify', requireUser, async (req, res) => {
         }
         const result = outcomes.includes('paid') ? 'paid' : outcomes.includes('pending') ? 'pending' : 'failed';
         const paid = result === 'paid' && await Transaction.findOne({ order: order._id, status: 'paid' });
+        if (paid) await notifyOrderPaid(await Order.findById(order._id), paid).catch(e => console.error('Order email error:', e.message));
         res.json({
             status: result,
             order: await Order.findById(order._id),

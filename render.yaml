@@ -25,3 +25,9 @@ services:
         value: sandbox
       - key: SITE_URL
         sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: OWNER_EMAIL
+        value: zamcloth5@gmail.com
