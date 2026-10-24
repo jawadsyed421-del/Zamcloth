@@ -10,7 +10,7 @@ const field = {
 const label = { display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' };
 
 // Only allow redirects back to pages inside this site
-const safeNext = (next) => (next && next.startsWith('/') && !next.startsWith('//') ? next : '/account');
+const safeNext = (next) => (next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
 
 export default function Auth({ mode }) {
     const isRegister = mode === 'register';

@@ -41,7 +41,7 @@ export default function Checkout() {
     const payNow = payMode === 'cod' ? COD_ADVANCE : orderTotal;
 
     if (authLoading) return <div className="container section" style={{ minHeight: '60vh' }} />;
-    if (!user) return <Navigate to="/login?next=/checkout" replace />;
+    if (!user) return <Navigate to="/login" replace />;
 
     if (cartItems.length === 0 && step !== 'success') {
         return (
