@@ -20,7 +20,7 @@ app.set('trust proxy', 1); // behind Render's proxy, so req.ip is the real visit
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } })); // rawBody is needed to check payment webhook signatures
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -51,7 +51,9 @@ app.use('/api', async (req, res, next) => {
 // Routes
 app.use('/api/auth', require('./routes/authRoutes.cjs'));
 app.use('/api/admin', require('./routes/adminRoutes.cjs'));
+app.use('/api/addresses', require('./routes/addressRoutes.cjs'));
 app.use('/api/products', require('./routes/productRoutes.cjs'));
+app.use('/api/hero', require('./routes/heroRoutes.cjs'));
 app.use('/api/orders', require('./routes/orderRoutes.cjs'));
 app.use('/api/payment', require('./routes/paymentRoutes.cjs'));
 

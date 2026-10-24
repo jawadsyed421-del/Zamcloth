@@ -11,7 +11,7 @@ const Image = require("./models/Image.cjs");
 const Transaction = require('./models/Transaction.cjs');
 const { syncAdminFromEnv } = require('./routes/adminRoutes.cjs');
 
-const required = ['MONGO_URI', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'ADMIN_TOKEN_SECRET', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'];
+const required = ['MONGO_URI', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'ADMIN_TOKEN_SECRET', 'CASHFREE_APP_ID', 'CASHFREE_SECRET_KEY'];
 
 (async () => {
     let ok = true;

@@ -11,6 +11,8 @@ const productSchema = mongoose.Schema({
     colors: [{ type: String }],
     image: { type: String, required: true }, // main photo (first of images)
     images: [{ type: String }], // all photos, in display order
+    imageColors: [{ type: String }], // colour name of each photo (same order as images), blank = all colours
+    colorOptions: [{ _id: false, name: { type: String, required: true }, hex: { type: String, default: '#9ca3af' } }],
     stock: { type: Number, default: 0, min: 0 },
     isNew: { type: Boolean, default: false },
     isTrending: { type: Boolean, default: false },

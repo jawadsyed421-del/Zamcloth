@@ -175,6 +175,7 @@ button {
 /* Navbar: menu left, logo centre, actions right. Menu becomes a dropdown below 1100px */
 .nav-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; }
 .nav-left { display: flex; align-items: center; }
+.nav-right a, .nav-right button { white-space: nowrap; }
 .nav-right { display: flex; gap: 1.25rem; align-items: center; justify-content: flex-end; }
 .nav-logo { display: flex; align-items: center; gap: 0.6rem; justify-self: center; }
 .nav-brand { font-family: var(--font-heading); font-size: 1.9rem; font-weight: 700; letter-spacing: 0.06em; color: var(--color-text); white-space: nowrap; }
@@ -204,7 +205,7 @@ button {
   .desktop-menu a:last-child { border-bottom: none; }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .nav-signin-text { display: none; }
   .nav-brand { font-size: 1.35rem; }
   .nav-right { gap: 0.9rem; }

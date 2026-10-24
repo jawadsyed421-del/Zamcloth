@@ -64,7 +64,7 @@ export default function CartDrawer() {
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                                     {cartItems.map((item) => (
-                                        <div key={`${item.id}-${item.size}`} style={{ display: 'flex', gap: '1rem' }}>
+                                        <div key={`${item.id}-${item.size}-${item.color || ''}`} style={{ display: 'flex', gap: '1rem' }}>
                                             <SafeImage src={item.image} alt={item.name} style={{ width: '80px', height: '100px', objectFit: 'cover', borderRadius: '4px' }} />
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -72,15 +72,15 @@ export default function CartDrawer() {
                                                     <p>₹{item.price}</p>
                                                 </div>
                                                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-                                                    Size: {item.size}
+                                                    Size: {item.size}{item.color ? ` · ${item.color}` : ''}
                                                 </p>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
-                                                        <button onClick={() => updateQuantity(item.id, item.size, -1)} style={{ padding: '0.5rem' }}><Minus size={14} color="var(--color-text)" /></button>
+                                                        <button onClick={() => updateQuantity(item.id, item.size, -1, item.color)} style={{ padding: '0.5rem' }}><Minus size={14} color="var(--color-text)" /></button>
                                                         <span style={{ padding: '0 0.5rem', fontSize: '0.9rem' }}>{item.quantity}</span>
-                                                        <button onClick={() => updateQuantity(item.id, item.size, 1)} style={{ padding: '0.5rem' }}><Plus size={14} color="var(--color-text)" /></button>
+                                                        <button onClick={() => updateQuantity(item.id, item.size, 1, item.color)} style={{ padding: '0.5rem' }}><Plus size={14} color="var(--color-text)" /></button>
                                                     </div>
-                                                    <button onClick={() => removeFromCart(item.id, item.size)} style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', textDecoration: 'underline' }}>Remove</button>
+                                                    <button onClick={() => removeFromCart(item.id, item.size, item.color)} style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', textDecoration: 'underline' }}>Remove</button>
                                                 </div>
                                             </div>
                                         </div>

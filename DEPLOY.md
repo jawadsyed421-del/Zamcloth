@@ -5,7 +5,7 @@ One Render web service runs everything: the Express API and the built website. P
 ## 1. Before you start
 - MongoDB Atlas cluster with a database user, and Network Access set to `0.0.0.0/0` (Render's addresses change).
 - This repo pushed to GitHub.
-- Your Razorpay keys.
+- Your Cashfree keys (test keys are fine for a demo).
 
 ## 2. Create the service
 1. Go to https://dashboard.render.com and choose **New → Blueprint** (or **New → Web Service**).
@@ -28,8 +28,10 @@ In the service's **Environment** tab, add these. Never put them in GitHub.
 | `ADMIN_USERNAME` | the admin username you want |
 | `ADMIN_PASSWORD` | a strong admin password |
 | `ADMIN_TOKEN_SECRET` | 32+ random characters (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
-| `RAZORPAY_KEY_ID` | from the Razorpay dashboard |
-| `RAZORPAY_KEY_SECRET` | from the Razorpay dashboard |
+| `CASHFREE_APP_ID` | Cashfree dashboard > Developers > API Keys |
+| `CASHFREE_SECRET_KEY` | same page |
+| `CASHFREE_ENV` | `sandbox` for testing, `production` for real payments |
+| `SITE_URL` | your website address, e.g. `https://www.zamcloth.com` |
 
 Do not set `PORT`. Render sets it.
 
@@ -42,7 +44,7 @@ Do not set `PORT`. Render sets it.
 
 ## 5. Notes
 - **Free plan sleeps** after 15 minutes without visitors; the next visit takes about 30 seconds to wake it. Use a paid plan for a real store.
-- **Razorpay:** use test keys first. Switch to live keys only after Razorpay approves your account.
+- **Cashfree:** use sandbox (test) keys first. Switch `CASHFREE_ENV` to `production` with live keys only after Cashfree approves your account. Add `https://YOUR-SITE/api/payment/webhook` as the webhook URL in the Cashfree dashboard.
 - **Changing the admin password:** edit `ADMIN_PASSWORD` in Render's Environment tab and redeploy. The server saves the new password to the database on start.
 - **Updating the site:** push to GitHub; Render redeploys automatically.
 - **Check the database from your computer:** `npm run check:db` (uses your local `.env`).

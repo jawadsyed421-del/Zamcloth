@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Upload, Package, Trash2, Save, ReceiptText } from 'lucide-react';
+import { LogOut, Upload, Package, Trash2, Save, ReceiptText, CreditCard, Image as ImageIcon } from 'lucide-react';
 import SafeImage from '../components/SafeImage';
+import PasswordInput from '../components/PasswordInput';
 
 const TOKEN_KEY = 'zam_admin_token';
 const SUBCATEGORIES = {
@@ -72,7 +73,7 @@ function Login({ onLogin }) {
                     <input value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" required autoFocus />
                 </label>
                 <label>Password
-                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" required />
+                    <PasswordInput value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" required />
                 </label>
                 {error && <p className="admin-error" role="alert">{error}</p>}
                 <button className="btn-primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
@@ -116,16 +117,74 @@ function Dashboard({ token, onLogout }) {
                 <div className="admin-tabs" role="tablist">
                     <button role="tab" aria-selected={tab === 'inventory'} onClick={() => setTab('inventory')}><Package size={16} /> Inventory ({products.length})</button>
                     <button role="tab" aria-selected={tab === 'orders'} onClick={() => setTab('orders')}><ReceiptText size={16} /> Orders</button>
+                    <button role="tab" aria-selected={tab === 'transactions'} onClick={() => setTab('transactions')}><CreditCard size={16} /> Transactions</button>
+                    <button role="tab" aria-selected={tab === 'hero'} onClick={() => setTab('hero')}><ImageIcon size={16} /> Hero banner</button>
                     <button role="tab" aria-selected={tab === 'upload'} onClick={() => setTab('upload')}><Upload size={16} /> Upload product</button>
                 </div>
 
                 {tab === 'orders'
                     ? <Orders auth={auth} onAuthFail={handleAuthFail} />
+                    : tab === 'transactions'
+                    ? <Transactions auth={auth} onAuthFail={handleAuthFail} />
+                    : tab === 'hero'
+                    ? <HeroManager auth={auth} onAuthFail={handleAuthFail} />
                     : tab === 'inventory'
                     ? <Inventory products={products} loading={loading} auth={auth} reload={load} onAuthFail={handleAuthFail} goUpload={() => setTab('upload')} />
                     : <UploadForm auth={auth} onAuthFail={handleAuthFail} onDone={() => { load(); setTab('inventory'); }} />}
             </div>
         </main>
+    );
+}
+
+const TX_STATUS = { paid: ['Paid', 'var(--color-accent)'], failed: ['Failed', '#e07a7a'], created: ['Pending', '#d9a441'] };
+function Transactions({ auth, onAuthFail }) {
+    const [list, setList] = useState(null);
+
+    const load = useCallback(async () => {
+        const res = await fetch('/api/payment/transactions', { headers: auth });
+        if (onAuthFail(res)) return;
+        setList(res.ok ? await res.json() : []);
+    }, [auth, onAuthFail]);
+
+    useEffect(() => { load(); }, [load]);
+
+    if (list === null) return <p className="muted">Loading transactions…</p>;
+    if (!list.length) return <div className="admin-card" style={{ textAlign: 'center' }}>No payments yet. Every payment attempt, paid or not, will appear here.</div>;
+
+    const paidTotal = list.filter(t => t.status === 'paid').reduce((sum, t) => sum + t.amount, 0);
+
+    return (
+        <div className="admin-card" style={{ padding: 0 }}>
+            <p className="muted small" style={{ padding: '1rem 1rem 0' }}>
+                {list.length} payment attempts · ₹{paidTotal.toFixed(2)} received
+                <button className="admin-ghost" onClick={load} style={{ marginLeft: '1rem' }}>Refresh</button>
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+                <table className="admin-table" style={{ minWidth: 900 }}>
+                    <thead><tr><th>Date</th><th>Customer</th><th>Order</th><th>Payment ID</th><th>Method</th><th>Amount</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {list.map(t => {
+                            const [label, colour] = TX_STATUS[t.status] || [t.status, 'inherit'];
+                            const name = t.customerName || t.order?.shippingAddress?.fullName || 'Unknown';
+                            return (
+                                <tr key={t._id}>
+                                    <td>{new Date(t.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                                    <td>{name}
+                                        <span className="muted small">{t.customerEmail || t.order?.shippingAddress?.email}</span>
+                                        <span className="muted small">{t.customerPhone || t.order?.shippingAddress?.phone}</span></td>
+                                    <td>{t.order?._id ? `…${String(t.order._id).slice(-6).toUpperCase()}` : '—'}
+                                        <span className="muted small">{t.order?.paymentMethod === 'Partial COD' ? 'Partial COD (advance)' : 'Online'}</span></td>
+                                    <td>{t.gatewayPaymentId || '—'}<span className="muted small">{t.gateway} · {t.gatewayOrderId}</span></td>
+                                    <td style={{ textTransform: 'capitalize' }}>{t.method || '—'}</td>
+                                    <td>₹{t.amount.toFixed(2)}</td>
+                                    <td><span style={{ color: colour }}>{label}</span>{t.failureReason && <span className="muted small">{t.failureReason}</span>}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }
 
@@ -173,7 +232,7 @@ function Orders({ auth, onAuthFail }) {
                                 <td>{o.user ? o.user.name : o.shippingAddress?.fullName || 'Unknown'}
                                     <span className="muted small">{o.user?.email || o.shippingAddress?.email}</span>
                                     <span className="muted small">{o.shippingAddress?.phone} · {o.shippingAddress?.city}</span></td>
-                                <td>{(o.orderItems || []).map((it, i) => <span key={i} className="small" style={{ display: 'block' }}>{it.name}{it.size ? ` (${it.size})` : ''} × {it.quantity}</span>)}</td>
+                                <td>{(o.orderItems || []).map((it, i) => <span key={i} className="small" style={{ display: 'block' }}>{it.name}{it.size || it.color ? ` (${[it.size, it.color].filter(Boolean).join(', ')})` : ''} × {it.quantity}</span>)}</td>
                                 <td>₹{o.totalPrice.toFixed(2)}</td>
                                 <td>
                                     <span style={{ color: o.isPaid ? 'var(--color-accent)' : '#e07a7a' }}>{o.isPaid ? (o.paymentMethod === 'Partial COD' ? 'Advance paid' : 'Paid') : (o.transaction?.status === 'failed' ? 'Failed' : 'Unpaid')}</span>
@@ -263,7 +322,7 @@ function Inventory({ products, loading, auth, reload, onAuthFail, goUpload }) {
 const MAX_PHOTOS = 6;
 
 // Shrinks a photo in the browser (max 1600px, JPEG) so several fit in one upload
-async function compressPhoto(file) {
+async function compressPhoto(file, maxSide = 1600) {
     const bitmap = await createImageBitmap(file);
     const draw = (maxSide, quality) => {
         const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
@@ -276,25 +335,125 @@ async function compressPhoto(file) {
         ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         return new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
     };
-    let blob = await draw(1600, 0.85);
-    if (blob.size > 700 * 1024) blob = await draw(1280, 0.7);
+    let blob = await draw(maxSide, 0.85);
+    if (blob.size > 900 * 1024) blob = await draw(Math.round(maxSide * 0.8), 0.7);
     bitmap.close?.();
     return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+}
+
+const MAX_HERO = 6;
+
+function HeroManager({ auth, onAuthFail }) {
+    const [images, setImages] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+
+    const load = useCallback(async () => {
+        const res = await fetch('/api/hero');
+        setImages(res.ok ? (await res.json()).images : []);
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    const call = async (url, options) => {
+        const res = await fetch(url, { ...options, headers: { ...auth, ...options.headers } });
+        if (onAuthFail(res)) return null;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Something went wrong');
+        return data;
+    };
+
+    const add = async (e) => {
+        const chosen = [...e.target.files];
+        e.target.value = '';
+        if (!chosen.length) return;
+        if ((images?.length || 0) + chosen.length > MAX_HERO) { setError(`The banner can hold up to ${MAX_HERO} photos.`); return; }
+        setBusy(true); setError(''); setMessage('');
+        try {
+            let latest = images;
+            for (const file of chosen) { // one photo per request keeps each upload small
+                const body = new FormData();
+                body.append('images', await compressPhoto(file, 2000));
+                const data = await call('/api/hero', { method: 'POST', body });
+                if (!data) return;
+                latest = data.images;
+                setImages(latest);
+            }
+            setMessage(latest.length > 1 ? 'Saved. The banner now slides automatically.' : 'Saved. One photo shows as a still banner.');
+        } catch (err) {
+            setError(err.message);
+        } finally { setBusy(false); }
+    };
+
+    const remove = async (url) => {
+        if (!window.confirm('Remove this photo from the banner?')) return;
+        setError(''); setMessage('');
+        try {
+            const data = await call('/api/hero', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+            if (data) setImages(data.images);
+        } catch (err) { setError(err.message); }
+    };
+
+    const move = async (url, direction) => {
+        setError(''); setMessage('');
+        try {
+            const data = await call('/api/hero/move', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, direction }) });
+            if (data) setImages(data.images);
+        } catch (err) { setError(err.message); }
+    };
+
+    if (images === null) return <p className="muted">Loading banner…</p>;
+
+    return (
+        <div className="admin-card">
+            <h2 style={{ fontSize: '1.3rem', marginBottom: '0.4rem' }}>Home page banner</h2>
+            <p className="muted small" style={{ marginBottom: '1rem' }}>
+                Upload 1 photo for a still banner, or 2 to {MAX_HERO} photos and the banner slides from right to left by itself.
+                Use wide, bright photos (landscape works best). With no photos, the default banner is shown.
+            </p>
+            {message && <p className="admin-ok" role="status">{message}</p>}
+            {error && <p className="admin-error" role="alert">{error}</p>}
+            <div className="photo-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+                {images.map((src, i) => (
+                    <div key={src} className="photo-thumb" style={{ aspectRatio: '16/10' }}>
+                        <img src={src} alt={`Banner photo ${i + 1}`} />
+                        <span className="photo-main">{i + 1}</span>
+                        <div className="photo-actions">
+                            <div style={{ display: 'flex' }}>
+                                <button type="button" disabled={i === 0} onClick={() => move(src, 'left')} style={{ flex: 1 }} aria-label="Move earlier">← Earlier</button>
+                                <button type="button" disabled={i === images.length - 1} onClick={() => move(src, 'right')} style={{ flex: 1 }} aria-label="Move later">Later →</button>
+                            </div>
+                            <button type="button" onClick={() => remove(src)}>Remove</button>
+                        </div>
+                    </div>
+                ))}
+                {images.length < MAX_HERO && (
+                    <label className="photo-drop photo-add" style={{ aspectRatio: '16/10' }}>
+                        <span><Upload size={22} /><br />{busy ? 'Uploading…' : images.length ? 'Add more photos' : 'Choose banner photos'}</span>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={add} />
+                    </label>
+                )}
+            </div>
+        </div>
+    );
 }
 
 function UploadForm({ auth, onAuthFail, onDone }) {
     const [category, setCategory] = useState('Women');
     const [multi, setMulti] = useState(false);
-    const [files, setFiles] = useState([]);
+    const [items, setItems] = useState([]); // [{ file, color }] one entry per photo
     const [previews, setPreviews] = useState([]);
+    const [colorOptions, setColorOptions] = useState([]); // [{ name, hex }]
+    const [colorName, setColorName] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
-        const urls = files.map(f => URL.createObjectURL(f));
+        const urls = items.map(i => URL.createObjectURL(i.file));
         setPreviews(urls);
         return () => urls.forEach(u => URL.revokeObjectURL(u));
-    }, [files]);
+    }, [items]);
 
     const pick = async (e) => {
         const chosen = [...e.target.files];
@@ -302,24 +461,40 @@ function UploadForm({ auth, onAuthFail, onDone }) {
         if (chosen.length === 0) return;
         setError('');
         try {
-            const ready = await Promise.all(chosen.map(compressPhoto));
-            setFiles(prev => multi ? [...prev, ...ready].slice(0, MAX_PHOTOS) : ready.slice(0, 1));
-            if (multi && files.length + ready.length > MAX_PHOTOS) setError(`Only the first ${MAX_PHOTOS} photos were kept`);
+            const ready = (await Promise.all(chosen.map(compressPhoto))).map(file => ({ file, color: '' }));
+            setItems(prev => multi ? [...prev, ...ready].slice(0, MAX_PHOTOS) : ready.slice(0, 1));
+            if (multi && items.length + ready.length > MAX_PHOTOS) setError(`Only the first ${MAX_PHOTOS} photos were kept`);
         } catch {
             setError('That file could not be read as a photo');
         }
     };
 
-    const removePhoto = (i) => setFiles(prev => prev.filter((_, j) => j !== i));
-    const makeMain = (i) => setFiles(prev => [prev[i], ...prev.filter((_, j) => j !== i)]);
-    const switchMode = (m) => { setMulti(m); if (!m) setFiles(prev => prev.slice(0, 1)); };
+    const removePhoto = (i) => setItems(prev => prev.filter((_, j) => j !== i));
+    const makeMain = (i) => setItems(prev => [prev[i], ...prev.filter((_, j) => j !== i)]);
+    const switchMode = (m) => { setMulti(m); if (!m) setItems(prev => prev.slice(0, 1)); };
+    const setPhotoColor = (i, color) => setItems(prev => prev.map((it, j) => (j === i ? { ...it, color } : it)));
+
+    const addColor = () => {
+        const name = colorName.trim();
+        if (!name) return;
+        if (colorOptions.some(c => c.name.toLowerCase() === name.toLowerCase())) { setError(`"${name}" is already added`); return; }
+        setError('');
+        setColorOptions(prev => [...prev, { name }].slice(0, 12));
+        setColorName('');
+    };
+    const removeColor = (name) => {
+        setColorOptions(prev => prev.filter(c => c.name !== name));
+        setItems(prev => prev.map(it => (it.color === name ? { ...it, color: '' } : it)));
+    };
 
     const submit = async (e) => {
         e.preventDefault();
-        if (files.length === 0) { setError('Choose a photo to upload'); return; }
+        if (items.length === 0) { setError('Choose a photo to upload'); return; }
         setBusy(true); setError('');
         const body = new FormData(e.target);
-        files.forEach(f => body.append('images', f));
+        items.forEach(it => body.append('images', it.file));
+        body.set('colorOptions', JSON.stringify(colorOptions));
+        body.set('imageColors', JSON.stringify(items.map(it => it.color)));
         body.set('isNew', e.target.isNew.checked);
         body.set('isTrending', e.target.isTrending.checked);
         try {
@@ -340,7 +515,7 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                     <label className="check"><input type="radio" name="photoMode" checked={!multi} onChange={() => switchMode(false)} /> Single photo</label>
                     <label className="check"><input type="radio" name="photoMode" checked={multi} onChange={() => switchMode(true)} /> Multiple photos</label>
                 </div>
-                {files.length === 0 ? (
+                {items.length === 0 ? (
                     <label className="photo-drop">
                         <span><Upload size={28} /><br />{multi ? `Choose up to ${MAX_PHOTOS} photos` : 'Choose photo'}<br /><small>JPG, PNG or WebP</small></span>
                         <input type="file" accept="image/jpeg,image/png,image/webp" multiple={multi} onChange={pick} />
@@ -352,12 +527,18 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                                 <img src={src} alt={`Photo ${i + 1}`} />
                                 {i === 0 && <span className="photo-main">Main</span>}
                                 <div className="photo-actions">
+                                    {colorOptions.length > 0 && (
+                                        <select value={items[i].color} onChange={e => setPhotoColor(i, e.target.value)} aria-label={`Colour of photo ${i + 1}`}>
+                                            <option value="">All colours</option>
+                                            {colorOptions.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                        </select>
+                                    )}
                                     {i > 0 && <button type="button" onClick={() => makeMain(i)}>Make main</button>}
                                     <button type="button" onClick={() => removePhoto(i)} aria-label={`Remove photo ${i + 1}`}>Remove</button>
                                 </div>
                             </div>
                         ))}
-                        {multi && files.length < MAX_PHOTOS && (
+                        {multi && items.length < MAX_PHOTOS && (
                             <label className="photo-drop photo-add">
                                 <span><Upload size={22} /><br />Add more</span>
                                 <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={pick} />
@@ -392,6 +573,24 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                 </div>
                 <div className="row">
                     <label>Sizes (comma separated)<input name="sizes" required defaultValue={SIZE_DEFAULTS[category]} key={`s${category}`} /></label>
+                </div>
+                <div className="color-editor">
+                    <span className="muted small">Colours (optional): type a colour and press Enter, e.g. Red, Blue, Yellow. Then pick the colour of each photo.</span>
+                    <div className="color-add">
+                        <input value={colorName} onChange={e => setColorName(e.target.value)} placeholder="Type a colour, press Enter" maxLength={30}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addColor(); } }} />
+                        <button type="button" className="btn-accent" onClick={addColor} style={{ padding: '0.5rem 1rem' }}>Add</button>
+                    </div>
+                    {colorOptions.length > 0 && (
+                        <div className="color-chips">
+                            {colorOptions.map(c => (
+                                <span key={c.name} className="color-chip">
+                                    {c.name}
+                                    <button type="button" onClick={() => removeColor(c.name)} aria-label={`Remove ${c.name}`}>×</button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <div className="row checks">
                     <label className="check"><input type="checkbox" name="isNew" /> Mark as new</label>
@@ -444,6 +643,15 @@ function AdminStyles() {
             .photo-actions { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; background: rgba(0,0,0,0.7); }
             .photo-actions button { font-size: 0.7rem; color: #fff; padding: 4px; }
             .photo-add { font-size: 0.8rem; }
+            .photo-actions select { font-size: 0.7rem; padding: 3px !important; background: #111; color: #fff; border: none; border-radius: 0; }
+            .color-editor { display: grid; gap: 0.6rem; }
+            .color-add { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+            .color-add input[type=color] { width: 44px; height: 40px; padding: 2px; background: none; border: 1px solid var(--color-border); border-radius: 4px; cursor: pointer; }
+            .color-add input:not([type=color]) { flex: 1; min-width: 160px; }
+            .color-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+            .color-chip { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--color-border); border-radius: 999px; padding: 0.2rem 0.4rem 0.2rem 0.6rem; font-size: 0.85rem; }
+            .color-chip i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,0.3); }
+            .color-chip button { color: var(--color-text-muted); padding: 0 0.3rem; font-size: 1rem; }
             .photo-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
             .photo-drop:focus-within { outline: 2px solid var(--color-accent); outline-offset: 3px; }
             .fields { display: flex; flex-direction: column; gap: 1rem; }

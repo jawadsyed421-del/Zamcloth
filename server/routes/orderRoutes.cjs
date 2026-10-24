@@ -38,7 +38,15 @@ router.post('/', requireUser, async (req, res) => {
             if (product.stock < qty) {
                 return res.status(409).json({ message: `Only ${product.stock} left of ${product.name}` });
             }
-            orderItems.push({ product: product._id, name: product.name, image: product.image, price: product.price, quantity: qty, size: str(item.size, 20) });
+            // If the product has colour options the shopper must have picked one of them
+            const options = (product.colorOptions || []).map(c => c.name);
+            const color = str(item.color, 40);
+            if (options.length && !options.includes(color)) {
+                return res.status(400).json({ message: `Choose a colour for ${product.name}` });
+            }
+            const photoIdx = options.length ? (product.imageColors || []).indexOf(color) : -1;
+            const itemImage = photoIdx >= 0 && product.images?.[photoIdx] ? product.images[photoIdx] : product.image;
+            orderItems.push({ product: product._id, name: product.name, image: itemImage, price: product.price, quantity: qty, size: str(item.size, 20), color });
             itemsPrice += product.price * qty;
         }
 
@@ -51,7 +59,7 @@ router.post('/', requireUser, async (req, res) => {
 
         const order = await Order.create({
             user: req.auth.sub, orderItems, shippingAddress: address,
-            paymentMethod: partialCod ? 'Partial COD' : 'Razorpay',
+            paymentMethod: partialCod ? 'Partial COD' : 'Online',
             itemsPrice, discountPrice, taxPrice: 0, shippingPrice: 0, totalPrice,
             advanceAmount: partialCod ? COD_ADVANCE : 0,
             codBalance: partialCod ? totalPrice - COD_ADVANCE : 0,

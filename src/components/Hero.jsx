@@ -2,24 +2,16 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import HeroSlider from './HeroSlider';
 
 export default function Hero() {
     return (
         <section style={{ height: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
-            {/* Background Image */}
-            <div
-                style={{
-                    position: 'absolute', inset: 0,
-                    backgroundImage: 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    filter: 'brightness(0.5) contrast(1.1)',
-                    zIndex: 0
-                }}
-            />
+            {/* Background photos (managed in Admin > Hero banner) */}
+            <HeroSlider />
 
             {/* Content */}
-            <div className="container" style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: '120px' }}>
+            <div className="container" style={{ position: 'relative', zIndex: 1, pointerEvents: 'none', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: '120px' }}>
                 <motion.div
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -46,7 +38,7 @@ export default function Hero() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.8 }}
                     >
-                        <Link to="/shop" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '1rem' }}>
+                        <Link to="/shop" className="btn-primary" style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: '1rem' }}>
                             Explore Collections <ArrowRight size={20} />
                         </Link>
                     </motion.div>

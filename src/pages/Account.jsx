@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SafeImage from '../components/SafeImage';
+import AddressBook, { useAddresses } from '../components/AddressBook';
 
 export const STATUS_LABEL = {
     pending_payment: 'Awaiting payment',
@@ -14,6 +15,7 @@ export const STATUS_LABEL = {
 export default function Account() {
     const { user, loading, logout, authFetch } = useAuth();
     const [orders, setOrders] = useState(null);
+    const book = useAddresses();
 
     useEffect(() => {
         if (!user) return;
@@ -34,6 +36,11 @@ export default function Account() {
                     <p style={{ color: 'var(--color-text-muted)' }}>{user.email}</p>
                 </div>
                 <button onClick={logout} style={{ border: '1px solid var(--color-border)', padding: '0.6rem 1.2rem', borderRadius: '4px', color: 'var(--color-text)' }}>Sign out</button>
+            </div>
+
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Saved addresses</h2>
+            <div style={{ marginBottom: '3rem' }}>
+                <AddressBook book={book} autoOpen={false} />
             </div>
 
             <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Your orders</h2>
@@ -63,7 +70,7 @@ export default function Account() {
                             {o.orderItems.map((it, i) => (
                                 <div key={i} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                     <SafeImage src={it.image} alt={it.name} style={{ width: 48, height: 60, objectFit: 'cover', borderRadius: 4, fontSize: '1.2rem' }} />
-                                    <span style={{ flex: 1 }}>{it.name}{it.size ? ` · ${it.size}` : ''} × {it.quantity}</span>
+                                    <span style={{ flex: 1 }}>{it.name}{it.size ? ` · ${it.size}` : ''}{it.color ? ` · ${it.color}` : ''} × {it.quantity}</span>
                                     <span>₹{(it.price * it.quantity).toFixed(2)}</span>
                                 </div>
                             ))}

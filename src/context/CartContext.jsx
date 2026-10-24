@@ -15,12 +15,14 @@ export const CartProvider = ({ children }) => {
         localStorage.setItem('zamcloth_cart', JSON.stringify(cartItems));
     }, [cartItems]);
 
-    const addToCart = (product, size = 'M', color = 'Standard') => {
+    const sameLine = (item, id, size, color) => item.id === id && item.size === size && (item.color || '') === (color || '');
+
+    const addToCart = (product, size = 'One Size', color = '') => {
         setCartItems(prev => {
-            const existing = prev.find(item => item.id === product.id && item.size === size);
+            const existing = prev.find(item => sameLine(item, product.id, size, color));
             if (existing) {
                 return prev.map(item =>
-                    (item.id === product.id && item.size === size)
+                    sameLine(item, product.id, size, color)
                         ? { ...item, quantity: item.quantity + 1 }
                         : item
                 );
@@ -30,13 +32,13 @@ export const CartProvider = ({ children }) => {
         setIsCartOpen(true);
     };
 
-    const removeFromCart = (id, size) => {
-        setCartItems(prev => prev.filter(item => !(item.id === id && item.size === size)));
+    const removeFromCart = (id, size, color = '') => {
+        setCartItems(prev => prev.filter(item => !sameLine(item, id, size, color)));
     };
 
-    const updateQuantity = (id, size, delta) => {
+    const updateQuantity = (id, size, delta, color = '') => {
         setCartItems(prev => prev.map(item => {
-            if (item.id === id && item.size === size) {
+            if (sameLine(item, id, size, color)) {
                 return { ...item, quantity: Math.max(1, item.quantity + delta) };
             }
             return item;

@@ -1,3 +1,4 @@
+import PasswordInput from '../components/PasswordInput';
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -61,7 +62,7 @@ export default function Auth({ mode }) {
                     </label>
                 )}
                 <label style={label}>Password
-                    <input name="password" type="password" value={form.password} onChange={change} required minLength={isRegister ? 8 : undefined}
+                    <PasswordInput name="password" value={form.password} onChange={change} required minLength={isRegister ? 8 : undefined}
                         autoComplete={isRegister ? 'new-password' : 'current-password'} style={field} />
                     {isRegister && <span style={{ fontSize: '0.8rem' }}>At least 8 characters</span>}
                 </label>

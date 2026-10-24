@@ -4,20 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Star } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import SizeChip from './SizeChip';
+import ColorSwatches from './ColorSwatches';
+import { imageFor } from '../data/colors';
 import { Link } from 'react-router-dom';
 
 export default function ProductCard({ product }) {
     const { addToCart } = useCart();
     const [isHovered, setIsHovered] = useState(false);
     const [picking, setPicking] = useState(false);
+    const colors = product.colorOptions || [];
+    const [pickColor, setPickColor] = useState(colors[0]?.name || '');
     const sizes = product.sizes?.length ? product.sizes : [];
     const noHover = typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
     const showQuickAdd = (isHovered || picking || noHover) && product.stock !== 0;
 
     const quickAdd = (e) => {
         e.preventDefault();
-        if (sizes.length > 1) { setPicking(p => !p); return; }
-        addToCart(product, sizes[0] || 'One Size');
+        if (sizes.length > 1 || colors.length > 1) { setPicking(p => !p); return; }
+        addToCart({ ...product, image: imageFor(product, pickColor) }, sizes[0] || 'One Size', pickColor);
     };
 
     return (
@@ -116,7 +120,7 @@ export default function ProductCard({ product }) {
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
                             }}
                         >
-                            <ShoppingBag size={16} /> {picking ? 'Select a size' : 'Quick Add'}
+                            <ShoppingBag size={16} /> {picking ? 'Select options' : 'Quick Add'}
                         </motion.button>
                     )}
                 </AnimatePresence>
@@ -124,6 +128,20 @@ export default function ProductCard({ product }) {
                 {/* Size picker: the shopper chooses the size before it goes in the cart */}
                 {picking && (
                     <div style={{ position: 'absolute', left: '1rem', right: '1rem', bottom: '4.2rem', background: 'rgba(10,10,10,0.95)', border: '1px solid var(--color-border)', padding: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
+                        {colors.length > 1 && (
+                            <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                                <ColorSwatches options={colors} selected={pickColor} onSelect={setPickColor} size={24} />
+                            </div>
+                        )}
+                        {sizes.length === 0 && (
+                            <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); addToCart({ ...product, image: imageFor(product, pickColor) }, 'One Size', pickColor); setPicking(false); }}
+                                style={{ padding: '0.5rem 1rem', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: '0.8rem', textTransform: 'uppercase' }}
+                            >
+                                Add to cart
+                            </button>
+                        )}
                         {sizes.map(size => (
                             <SizeChip
                                 key={size}
@@ -131,7 +149,7 @@ export default function ProductCard({ product }) {
                                 size={size}
                                 category={product.category}
                                 subcategory={product.subcategory}
-                                onClick={(e) => { e.preventDefault(); addToCart(product, size); setPicking(false); }}
+                                onClick={(e) => { e.preventDefault(); addToCart({ ...product, image: imageFor(product, pickColor) }, size, pickColor); setPicking(false); }}
                             />
                         ))}
                     </div>

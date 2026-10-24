@@ -6,6 +6,8 @@ import SizeChartModal from '../components/SizeChartModal';
 import SizeChip from '../components/SizeChip';
 import ProductGallery from '../components/ProductGallery';
 import { sizeInfo } from '../data/sizes';
+import ColorSwatches from '../components/ColorSwatches';
+import { photosFor, imageFor } from '../data/colors';
 
 export default function ProductDetails() {
     const { id } = useParams();
@@ -15,6 +17,7 @@ export default function ProductDetails() {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showChart, setShowChart] = useState(false);
+    const [selectedColor, setSelectedColor] = useState('');
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -24,6 +27,7 @@ export default function ProductDetails() {
                 const data = await res.json();
                 setProduct(data);
                 setSelectedSize(data.sizes?.[0] || '');
+                setSelectedColor(data.colorOptions?.[0]?.name || '');
             } catch (error) {
                 console.error(error);
             } finally {
@@ -48,7 +52,7 @@ export default function ProductDetails() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '4rem' }}>
                 {/* Photos */}
                 <div style={{ minWidth: 0 }}>
-                    <ProductGallery images={product.images?.length ? product.images : [product.image]} name={product.name} />
+                    <ProductGallery key={selectedColor} images={photosFor(product, selectedColor)} name={product.name} />
                 </div>
 
                 {/* Info */}
@@ -62,6 +66,15 @@ export default function ProductDetails() {
                     <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.8, marginBottom: '2rem' }}>
                         {product.description}
                     </p>
+
+                    {product.colorOptions?.length > 0 && (
+                        <div style={{ marginBottom: '2rem' }}>
+                            <span style={{ display: 'block', marginBottom: '0.8rem', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
+                                COLOUR <strong style={{ color: 'var(--color-text)' }}>{selectedColor}</strong>
+                            </span>
+                            <ColorSwatches options={product.colorOptions} selected={selectedColor} onSelect={setSelectedColor} size={34} />
+                        </div>
+                    )}
 
                     <div style={{ marginBottom: '2rem' }}>
                         <span style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
@@ -83,7 +96,7 @@ export default function ProductDetails() {
                     </div>
 
                     <button
-                        onClick={() => addToCart({ ...product, id: product._id }, selectedSize)}
+                        onClick={() => addToCart({ ...product, id: product._id, image: imageFor(product, selectedColor) }, selectedSize, selectedColor)}
                         className="btn-primary"
                         disabled={product.stock === 0}
                         style={{ width: '100%', padding: '1.2rem', opacity: product.stock === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}
@@ -92,7 +105,7 @@ export default function ProductDetails() {
                     </button>
                     {product.stock > 0 && (
                         <button
-                            onClick={() => { addToCart({ ...product, id: product._id }, selectedSize); setIsCartOpen(false); navigate('/checkout'); }}
+                            onClick={() => { addToCart({ ...product, id: product._id, image: imageFor(product, selectedColor) }, selectedSize, selectedColor); setIsCartOpen(false); navigate('/checkout'); }}
                             className="btn-accent"
                             style={{ width: '100%', padding: '1.2rem', marginTop: '0.8rem' }}
                         >
