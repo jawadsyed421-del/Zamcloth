@@ -6,39 +6,34 @@ import HeroSlider from './HeroSlider';
 
 export default function Hero() {
     return (
-        <section style={{ height: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
+        <section className="home-hero" style={{ width: '100%', position: 'relative', overflow: 'hidden' }}>
             {/* Background photos (managed in Admin > Hero banner) */}
             <HeroSlider />
 
             {/* Content */}
-            <div className="container" style={{ position: 'relative', zIndex: 1, pointerEvents: 'none', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: '120px' }}>
+            <div className="container home-hero-content">
                 <motion.div
+                    className="home-hero-copy"
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
-                    style={{ maxWidth: '800px' }}
                 >
-                    <h1 style={{
-                        fontSize: 'clamp(3rem, 8vw, 6rem)',
-                        lineHeight: 1.1,
-                        marginBottom: '1.25rem',
-                        color: '#ffffff',
-                        textShadow: '0 4px 24px rgba(0,0,0,0.6)'
-                    }}>
-                        Style for Every <br /> Generation.
+                    <h1 className="home-hero-title">
+                        Style for Every <br className="home-hero-break" /> Generation.
                     </h1>
-                    <p style={{ color: '#f5f5f5', fontSize: 'clamp(1rem, 2.2vw, 1.35rem)', marginBottom: '1rem', maxWidth: '560px' }}>
+                    <p className="home-hero-description">
                         Discover everyday fashion for men, women and kids.
                     </p>
-                    <p style={{ color: 'var(--color-accent)', fontSize: 'clamp(1.1rem, 2.6vw, 1.6rem)', fontWeight: 600, marginBottom: '2rem' }}>
+                    <p className="home-hero-tagline">
                         Affordable Fashion. Premium Feel.
                     </p>
                     <motion.div
+                        className="home-hero-action"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.8 }}
                     >
-                        <Link to="/shop" className="btn-primary" style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: '1rem' }}>
+                        <Link to="/shop" className="btn-primary home-hero-button">
                             Explore Collections <ArrowRight size={20} />
                         </Link>
                     </motion.div>
@@ -49,16 +44,7 @@ export default function Hero() {
             <motion.div
                 animate={{ y: [0, 10, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                style={{
-                    position: 'absolute',
-                    bottom: '2rem',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    color: 'var(--color-text-muted)',
-                    fontSize: '0.8rem',
-                    letterSpacing: '0.2em',
-                    textTransform: 'uppercase'
-                }}
+                className="home-hero-scroll"
             >
                 Scroll
             </motion.div>

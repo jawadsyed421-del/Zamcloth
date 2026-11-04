@@ -31,13 +31,13 @@ export default function Home() {
             <Hero />
 
             {/* Trending Section */}
-            <section className="section container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '4rem' }}>
+            <section className="section container home-trending">
+                <div className="home-section-header">
                     <div>
-                        <h2 style={{ fontSize: '3rem', marginBottom: '1rem' }}>Trending Now</h2>
+                        <h2>Trending Now</h2>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: '1.2rem' }}>Curated favorites for the season.</p>
                     </div>
-                    <Link to="/shop" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderBottom: '1px solid var(--color-accent)', paddingBottom: '0.2rem', fontSize: '1.1rem' }}>
+                    <Link to="/shop" className="home-section-link">
                         View All <ArrowRight size={20} />
                     </Link>
                 </div>
@@ -45,11 +45,7 @@ export default function Home() {
                 {trendingProducts.length === 0 && (
                     <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '4rem 0' }}>New arrivals are on the way. Check back soon.</p>
                 )}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                    gap: '4rem'
-                }}>
+                <div className="home-product-grid">
                     {trendingProducts.map(product => (
                         <div key={product._id}>
                             <ProductCard product={product} />
@@ -59,31 +55,25 @@ export default function Home() {
             </section>
 
             {/* Categories Section */}
-            <section className="section" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+            <section className="section home-categories" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
                 <div className="container">
-                    <h2 style={{ fontSize: '3rem', marginBottom: '4rem', textAlign: 'center' }}>Shop by Category</h2>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                        gap: '2rem'
-                    }}>
+                        <h2 className="home-section-title">Shop by Category</h2>
+                        <div className="home-category-grid">
                         {categories.map(cat => (
-                            <Link key={cat.id} to={`/shop?category=${cat.name}`} style={{ position: 'relative', height: '520px', overflow: 'hidden', display: 'block' }}>
+                                <Link key={cat.id} to={`/shop?category=${cat.name}`} className="home-category-card">
                                 <SafeImage
                                     src={cat.image}
                                     alt={cat.name}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.8s ease' }}
-                                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain', transition: 'filter 0.8s ease' }}
                                 />
                                 <div style={{
                                     position: 'absolute', inset: 0,
                                     background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-                                    display: 'flex', alignItems: 'flex-end', padding: '3rem'
+                                    display: 'flex', alignItems: 'flex-end', padding: 'clamp(1rem, 4vw, 3rem)'
                                 }}>
                                     <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div>
-                                            <h3 style={{ fontSize: '2rem', color: '#fff', fontFamily: 'var(--font-heading)' }}>{cat.name}</h3>
+                                            <h3 className="home-category-title">{cat.name}</h3>
                                             {cat.comingSoon && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Coming soon</p>}
                                         </div>
                                         <div style={{ background: '#fff', padding: '1rem', borderRadius: '50%', display: 'flex' }}>
@@ -99,15 +89,18 @@ export default function Home() {
 
             {/* Story / Banner */}
             <section className="section container">
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    maxWidth: '900px',
-                    margin: '0 auto',
-                    padding: '4rem 0'
-                }}>
+                <div
+                    className="home-story"
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        maxWidth: '900px',
+                        margin: '0 auto',
+                        padding: '4rem 0'
+                    }}
+                >
                     <span style={{ color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '1.5rem', fontWeight: 600 }}>Our Philosophy</span>
                     <h2 style={{ fontSize: 'clamp(2.2rem, 6vw, 3.5rem)', marginBottom: '2.5rem', fontFamily: 'var(--font-heading)', lineHeight: 1.2 }}>
                         Style That Speaks<br /> Without Words

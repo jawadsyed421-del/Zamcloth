@@ -475,24 +475,26 @@ function Inventory({ products, loading, auth, reload, onAuthFail, goUpload }) {
 
 const MAX_PHOTOS = 6;
 
-// Shrinks a photo in the browser (max 1600px, JPEG) so several fit in one upload
+// Shrinks browser-decodable images before upload; the server normalizes every format too.
 async function compressPhoto(file, maxSide = 1600) {
-    const bitmap = await createImageBitmap(file);
-    const draw = (maxSide, quality) => {
+    let bitmap;
+    try {
+        bitmap = await createImageBitmap(file);
         const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(bitmap.width * scale);
         canvas.height = Math.round(bitmap.height * scale);
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (!ctx) return file;
         ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        return new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
-    };
-    let blob = await draw(maxSide, 0.85);
-    if (blob.size > 900 * 1024) blob = await draw(Math.round(maxSide * 0.8), 0.7);
-    bitmap.close?.();
-    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.84));
+        if (!blob) return file;
+        return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp' });
+    } catch {
+        return file;
+    } finally {
+        bitmap?.close();
+    }
 }
 
 const MAX_HERO = 6;
@@ -528,7 +530,7 @@ function HeroManager({ auth, onAuthFail }) {
             let latest = images;
             for (const file of chosen) { // one photo per request keeps each upload small
                 const body = new FormData();
-                body.append('images', await compressPhoto(file, 2000));
+                body.append('images', await compressPhoto(file, 1600));
                 const data = await call('/api/hero', { method: 'POST', body });
                 if (!data) return;
                 latest = data.images;
@@ -585,7 +587,7 @@ function HeroManager({ auth, onAuthFail }) {
                 {images.length < MAX_HERO && (
                     <label className="photo-drop photo-add" style={{ aspectRatio: '16/10' }}>
                         <span><Upload size={22} /><br />{busy ? 'Uploading…' : images.length ? 'Add more photos' : 'Choose banner photos'}</span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={add} />
+                        <input type="file" accept="image/*,.heic,.heif" multiple disabled={busy} onChange={add} />
                     </label>
                 )}
             </div>
@@ -671,8 +673,8 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                 </div>
                 {items.length === 0 ? (
                     <label className="photo-drop">
-                        <span><Upload size={28} /><br />{multi ? `Choose up to ${MAX_PHOTOS} photos` : 'Choose photo'}<br /><small>JPG, PNG or WebP</small></span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple={multi} onChange={pick} />
+                        <span><Upload size={28} /><br />{multi ? `Choose up to ${MAX_PHOTOS} photos` : 'Choose photo'}<br /><small>JPG, PNG, WebP, HEIC and other image formats</small></span>
+                        <input type="file" accept="image/*,.heic,.heif" multiple={multi} onChange={pick} />
                     </label>
                 ) : (
                     <div className="photo-grid">
@@ -695,13 +697,13 @@ function UploadForm({ auth, onAuthFail, onDone }) {
                         {multi && items.length < MAX_PHOTOS && (
                             <label className="photo-drop photo-add">
                                 <span><Upload size={22} /><br />Add more</span>
-                                <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={pick} />
+                                <input type="file" accept="image/*,.heic,.heif" multiple onChange={pick} />
                             </label>
                         )}
                         {!multi && (
                             <label className="photo-drop photo-add">
                                 <span>Change photo</span>
-                                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pick} />
+                                <input type="file" accept="image/*,.heic,.heif" onChange={pick} />
                             </label>
                         )}
                     </div>
@@ -789,11 +791,11 @@ function AdminStyles() {
             .admin-table input.num { width: 90px !important; padding: 0.4rem 0.6rem !important; }
             .admin-form { display: grid; grid-template-columns: 280px 1fr; gap: 2rem; }
             .photo-drop { aspect-ratio: 3/4; border: 1px dashed var(--color-accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer; overflow: hidden; position: relative; color: var(--color-text-muted); }
-            .photo-drop img { width: 100%; height: 100%; object-fit: cover; }
+            .photo-drop img { width: 100%; height: 100%; object-fit: contain; }
             .mode-toggle { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.9rem; }
             .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }
             .photo-thumb { position: relative; aspect-ratio: 3/4; border-radius: 6px; overflow: hidden; border: 1px solid var(--color-border); }
-            .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+            .photo-thumb img { width: 100%; height: 100%; object-fit: contain; }
             .photo-main { position: absolute; top: 4px; left: 4px; background: var(--color-accent); color: #000; font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; }
             .photo-actions { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; background: rgba(0,0,0,0.7); }
             .photo-actions button { font-size: 0.7rem; color: #fff; padding: 4px; }

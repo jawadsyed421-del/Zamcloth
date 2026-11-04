@@ -4,26 +4,21 @@ const Product = require('../models/Product.cjs');
 const Image = require('../models/Image.cjs');
 const { requireAdmin } = require('../middleware/auth.cjs');
 const { createWorkbook, readSpreadsheetRows } = require('../utils/spreadsheets.cjs');
+const { imageUpload, imageUploadError, optimizeImage } = require('../utils/imageProcessing.cjs');
 
 const router = express.Router();
 
 const MAX_PHOTOS = 6;
-const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-// Photos are held in memory just long enough to save them to the database.
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 4 * 1024 * 1024, files: MAX_PHOTOS },
-    fileFilter: (req, file, cb) =>
-        cb(TYPES.has(file.mimetype) ? null : new Error('Only JPG, PNG or WebP photos are allowed'), TYPES.has(file.mimetype)),
-});
+const upload = imageUpload(MAX_PHOTOS);
 const spreadsheetUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
 
-const saveImage = async (file) => {
-    const img = await Image.create({ data: file.buffer, contentType: file.mimetype });
+const saveImage = async (file, dimensions) => {
+    const data = await optimizeImage(file.buffer, dimensions);
+    const img = await Image.create({ data, contentType: 'image/webp' });
     return `/api/images/${img._id}`;
 };
 
@@ -125,13 +120,13 @@ router.get('/:id', async (req, res) => {
 });
 
 // Admin: create product with one or several photos (the first is the main photo)
-router.post('/', requireAdmin, upload.array('images', MAX_PHOTOS), async (req, res) => {
+router.post('/', requireAdmin, upload, async (req, res) => {
     const files = req.files || [];
     if (files.length === 0) return res.status(400).json({ message: 'Choose at least one photo to upload' });
     if (!String(req.body.productCode || '').trim()) return res.status(400).json({ message: 'Enter a product code' });
     const saved = [];
     try {
-        for (const f of files) saved.push(await saveImage(f));
+        for (const f of files) saved.push(await saveImage(f, { width: 2000, height: 2400 }));
         const fields = fieldsFromBody(req.body);
         const product = await Product.create({
             ...fields, image: saved[0], images: saved,
@@ -201,7 +196,7 @@ router.post('/bulk-upload', requireAdmin, spreadsheetUpload.single('file'), asyn
 });
 
 // Admin: update product (new photos, if sent, replace the old gallery)
-router.put('/:id', requireAdmin, upload.array('images', MAX_PHOTOS), async (req, res) => {
+router.put('/:id', requireAdmin, upload, async (req, res) => {
     const saved = [];
     try {
         const product = await Product.findById(req.params.id);
@@ -209,7 +204,7 @@ router.put('/:id', requireAdmin, upload.array('images', MAX_PHOTOS), async (req,
         const oldPhotos = [product.image, ...(product.images || [])];
         product.set(fieldsFromBody(req.body));
         if (req.files?.length) {
-            for (const f of req.files) saved.push(await saveImage(f));
+            for (const f of req.files) saved.push(await saveImage(f, { width: 2000, height: 2400 }));
             product.image = saved[0];
             product.images = saved;
             product.imageColors = parsePhotoColors(req.body.imageColors, saved.length, product.colorOptions);
@@ -237,10 +232,12 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
 // Upload / validation errors
 router.use((err, req, res, next) => {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({ message: req.path === '/bulk-upload' ? 'Excel or CSV files must be under 10 MB' : 'Each photo must be under 4 MB' });
+    if (err.code === 'LIMIT_FILE_SIZE' && req.path === '/bulk-upload') {
+        return res.status(413).json({ message: 'Excel or CSV files must be under 10 MB' });
     }
-    return res.status(400).json({ message: err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE' ? `You can upload up to ${MAX_PHOTOS} photos` : err.message });
+    const uploadError = imageUploadError(err);
+    if (uploadError) return res.status(uploadError.status).json({ message: uploadError.message });
+    return res.status(400).json({ message: err.message });
 });
 
 module.exports = router;

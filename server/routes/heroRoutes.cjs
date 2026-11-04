@@ -1,19 +1,13 @@
 const express = require('express');
-const multer = require('multer');
 const Hero = require('../models/Hero.cjs');
 const Image = require('../models/Image.cjs');
 const { requireAdmin } = require('../middleware/auth.cjs');
+const { imageUpload, imageUploadError, optimizeImage } = require('../utils/imageProcessing.cjs');
 
 const router = express.Router();
 
 const MAX_SLIDES = 6;
-const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 4 * 1024 * 1024, files: MAX_SLIDES },
-    fileFilter: (req, file, cb) =>
-        cb(TYPES.has(file.mimetype) ? null : new Error('Only JPG, PNG or WebP photos are allowed'), TYPES.has(file.mimetype)),
-});
+const upload = imageUpload(MAX_SLIDES);
 
 const getHero = async () => (await Hero.findOne({ key: 'home' })) || new Hero({ key: 'home', images: [] });
 
@@ -27,7 +21,7 @@ router.get('/', async (req, res) => {
 });
 
 // Admin: add photos (up to 6 in total). Two or more photos make the banner slide automatically.
-router.post('/', requireAdmin, upload.array('images', MAX_SLIDES), async (req, res) => {
+router.post('/', requireAdmin, upload, async (req, res) => {
     const saved = [];
     try {
         const hero = await getHero();
@@ -37,7 +31,8 @@ router.post('/', requireAdmin, upload.array('images', MAX_SLIDES), async (req, r
             return res.status(400).json({ message: `The banner can hold up to ${MAX_SLIDES} photos. Remove one first.` });
         }
         for (const f of files) {
-            const img = await Image.create({ data: f.buffer, contentType: f.mimetype });
+            const data = await optimizeImage(f.buffer, { width: 2400, height: 1600 });
+            const img = await Image.create({ data, contentType: 'image/webp' });
             saved.push(`/api/images/${img._id}`);
         }
         hero.images.push(...saved);
@@ -84,7 +79,9 @@ router.put('/move', requireAdmin, async (req, res) => {
 });
 
 router.use((err, req, res, next) => {
-    res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Each photo must be under 4 MB' : err.message });
+    const uploadError = imageUploadError(err);
+    if (uploadError) return res.status(uploadError.status).json({ message: uploadError.message });
+    return res.status(400).json({ message: err.message });
 });
 
 module.exports = router;

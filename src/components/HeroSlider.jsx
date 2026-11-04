@@ -74,13 +74,15 @@ export default function HeroSlider() {
                 {track.map((src, i) => (
                     <div
                         key={i}
+                        className="hero-slide"
                         aria-hidden={i !== shown}
                         style={{
                             flex: `0 0 ${100 / track.length}%`, height: '100%',
-                            backgroundImage: `url("${src}")`, backgroundSize: 'cover', backgroundPosition: 'center',
-                            filter: 'brightness(0.5) contrast(1.1)',
+                            '--hero-image': `url("${src}")`,
                         }}
-                    />
+                    >
+                        <img className="hero-slide-photo" src={src} alt="" draggable="false" />
+                    </div>
                 ))}
             </div>
 

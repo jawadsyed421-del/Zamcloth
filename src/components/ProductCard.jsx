@@ -47,9 +47,7 @@ export default function ProductCard({ product }) {
                         style={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover',
-                            transition: 'transform 0.6s ease',
-                            transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                            objectFit: 'contain',
                             filter: isHovered ? 'brightness(1.1)' : 'brightness(1)'
                         }}
                     />
@@ -57,7 +55,7 @@ export default function ProductCard({ product }) {
                         <SafeImage
                             src={product.images[1]}
                             alt=""
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: isHovered ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: isHovered ? 1 : 0, transition: 'opacity 0.4s ease' }}
                         />
                     )}
                 </Link>

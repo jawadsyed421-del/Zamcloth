@@ -37,7 +37,7 @@ export default function ProductGallery({ images, name }) {
                 >
                     {images.map((src, i) => (
                         <div key={src + i} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
-                            <SafeImage src={src} alt={`${name} – photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <SafeImage src={src} alt={`${name} – photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         </div>
                     ))}
                 </div>
