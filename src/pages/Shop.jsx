@@ -240,12 +240,7 @@ export default function Shop() {
                     {loading ? (
                         <div style={{ textAlign: 'center' }}>Loading...</div>
                     ) : filteredProducts.length > 0 ? (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                            gap: '2.5rem 2rem',
-                            alignItems: 'start'
-                        }}>
+                        <div className="shop-product-grid">
                             {filteredProducts.map(product => (
                                 <div key={product._id}>
                                     <ProductCard product={{ ...product, id: product._id }} />

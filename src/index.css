@@ -158,15 +158,6 @@ button {
 }
 
 .hero-slide { position: relative; overflow: hidden; background: #111; }
-.hero-slide::before {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  background-image: var(--hero-image);
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.45) contrast(1.1) blur(4px);
-}
 .hero-slide-photo {
   position: absolute;
   inset: 0;
@@ -199,6 +190,12 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: clamp(1.25rem, 4vw, 4rem);
+}
+.shop-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 2.5rem 2rem;
+  align-items: start;
 }
 .home-section-title {
   font-size: clamp(2rem, 5vw, 3rem);
@@ -326,28 +323,29 @@ button {
 @media (max-width: 900px) {
   .home-hero-content { justify-content: flex-end; padding-top: 0; padding-bottom: 5rem; }
   .hero-slide-photo {
-    top: 6rem;
-    height: 44%;
+    top: 8rem;
+    height: auto;
+    max-height: 44%;
     object-fit: contain;
-    object-position: center;
+    object-position: top center;
     filter: brightness(0.9);
   }
-  .hero-slide::before { inset: -16px; filter: brightness(0.38) blur(12px); }
 }
 
 @media (max-width: 600px) {
   .home-hero {
-    height: max(100svh, 680px);
-    min-height: 680px;
+    height: auto;
+    min-height: 0;
+    padding-bottom: 4rem;
   }
   .home-hero-content {
-    position: absolute;
-    right: 0;
-    bottom: 5rem;
-    left: 0;
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
     height: auto;
-    justify-content: flex-end;
-    padding: 0;
+    justify-content: flex-start;
+    padding: calc(8rem + 56vw + 1.55rem) 0 0;
     text-align: center;
   }
   .home-hero-copy { max-width: 100%; }
@@ -362,6 +360,13 @@ button {
   .home-hero-action { display: flex; justify-content: center; }
   .home-hero-button { justify-content: center; gap: 0.6rem; padding: 0.9rem 1rem; font-size: 0.8rem; }
   .home-hero-scroll { bottom: 1.5rem; }
+  .hero-slide-indicators { top: calc(8rem + 56vw); bottom: auto !important; }
+  .home-product-grid,
+  .shop-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 0.65rem;
+  }
+  .home-product-grid { gap: 1.25rem 0.85rem; }
   .home-section-header { align-items: flex-start; flex-wrap: wrap; margin-bottom: 2rem; }
   .home-section-header h2 { margin-bottom: 0.4rem; }
   .home-section-link { font-size: 0.95rem; }

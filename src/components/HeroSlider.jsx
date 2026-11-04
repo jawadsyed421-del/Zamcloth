@@ -87,7 +87,7 @@ export default function HeroSlider() {
             </div>
 
             {multi && (
-                <div style={{ position: 'absolute', bottom: '4.5rem', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '0.5rem', zIndex: 2 }}>
+                <div className="hero-slide-indicators" style={{ position: 'absolute', bottom: '4.5rem', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '0.5rem', zIndex: 2 }}>
                     {slides.map((_, i) => (
                         <button
                             key={i}
