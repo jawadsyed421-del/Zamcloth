@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 const orderSchema = mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    externalOrderNumber: { type: String, trim: true, sparse: true, unique: true, maxlength: 100 },
     orderItems: [
         {
             name: { type: String, required: true },
@@ -11,6 +12,7 @@ const orderSchema = mongoose.Schema({
             size: { type: String },
             color: { type: String },
             product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+            productCode: { type: String, trim: true, uppercase: true },
         },
     ],
     shippingAddress: {
@@ -22,10 +24,12 @@ const orderSchema = mongoose.Schema({
         postalCode: { type: String, required: true },
         country: { type: String, required: true, default: 'India' },
     },
-    paymentMethod: { type: String, required: true, enum: ['Online', 'Razorpay', 'Partial COD'], default: 'Online' },
+    paymentMethod: { type: String, required: true, enum: ['Online', 'Razorpay', 'Partial COD', 'Offline'], default: 'Online' },
     discountPrice: { type: Number, default: 0 }, // 5% prepaid discount
     advanceAmount: { type: Number, default: 0 }, // paid online for Partial COD
     codBalance: { type: Number, default: 0 }, // collected at delivery for Partial COD
+    codCollectedAmount: { type: Number, default: 0 },
+    codCollectedAt: { type: Date },
     itemsPrice: { type: Number, required: true, default: 0 },
     taxPrice: { type: Number, required: true, default: 0 },
     shippingPrice: { type: Number, required: true, default: 0 },

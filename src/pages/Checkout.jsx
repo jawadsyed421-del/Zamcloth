@@ -3,9 +3,10 @@ import { useCart } from '../context/CartContext';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { CheckCircle, Shield } from 'lucide-react';
-import { COD_ADVANCE, PREPAID_DISCOUNT_PERCENT } from '../data/company';
+import { COD_ADVANCE, FREE_SHIPPING_MIN, PREPAID_DISCOUNT_PERCENT, STANDARD_SHIPPING_FEE } from '../data/company';
 import { loadCashfree } from '../data/cashfree';
 import AddressBook, { useAddresses, formatAddress } from '../components/AddressBook';
+import OrderReceipt from '../components/OrderReceipt';
 
 export default function Checkout() {
     const { cartItems, cartTotal, clearCart } = useCart();
@@ -14,8 +15,8 @@ export default function Checkout() {
     const [step, setStep] = useState('shipping'); // shipping, payment, success
     const [loading, setLoading] = useState(false);
     const [payMode, setPayMode] = useState('online'); // online | cod
-    const [gateway, setGateway] = useState({ mode: '' }); // Cashfree environment (sandbox | production)
-    const [receipt, setReceipt] = useState(null); // payment reference shown after success
+    const [gateway, setGateway] = useState({ mode: '', gstin: '' }); // Cashfree environment (sandbox | production)
+    const [receipt, setReceipt] = useState(null);
     const [notice, setNotice] = useState('');
 
     useEffect(() => {
@@ -36,7 +37,9 @@ export default function Checkout() {
     }, [book.list, autoPicked]);
 
     const prepaidDiscount = payMode === 'online' ? Math.round(cartTotal * PREPAID_DISCOUNT_PERCENT) / 100 : 0;
-    const orderTotal = cartTotal - prepaidDiscount;
+    const discountedSubtotal = cartTotal - prepaidDiscount;
+    const shippingPrice = discountedSubtotal >= FREE_SHIPPING_MIN ? 0 : STANDARD_SHIPPING_FEE;
+    const orderTotal = discountedSubtotal + shippingPrice;
     const codAllowed = orderTotal > COD_ADVANCE;
     const payNow = payMode === 'cod' ? COD_ADVANCE : orderTotal;
 
@@ -113,7 +116,7 @@ export default function Checkout() {
                     ? `Your payment is still being confirmed. Check "My orders" in a minute (order …${orderId.slice(-6).toUpperCase()}).`
                     : 'Payment was not completed. You can try again.');
             }
-            setReceipt({ orderId, ...verified.payment });
+            setReceipt({ order: verified.order, payment: verified.payment });
             setNotice('');
             clearCart();
             setStep('success');
@@ -133,22 +136,7 @@ export default function Checkout() {
                 <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>
                     Thank you for choosing ZamCloth. Your order has been received and is being processed with care.
                 </p>
-                {receipt && (
-                    <dl style={{ border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', marginBottom: '2rem' }}>
-                        {[
-                            ['Order ID', `…${String(receipt.orderId).slice(-6).toUpperCase()}`],
-                            ['Payment ID', receipt.paymentId],
-                            ['Reference ID', receipt.referenceId],
-                            ['Method', receipt.method],
-                            ['Amount paid', receipt.amount != null ? `₹${Number(receipt.amount).toFixed(2)}` : ''],
-                        ].filter(([, v]) => v).map(([k, v], i) => (
-                            <div key={k} style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '1rem', padding: '0.8rem 1rem', borderTop: i ? '1px solid var(--color-border)' : 'none' }}>
-                                <dt style={{ fontWeight: 600 }}>{k}</dt>
-                                <dd style={{ color: 'var(--color-text-muted)', overflowWrap: 'anywhere', textTransform: k === 'Method' ? 'capitalize' : 'none' }}>{v}</dd>
-                            </div>
-                        ))}
-                    </dl>
-                )}
+                {receipt && <OrderReceipt order={receipt.order} payment={receipt.payment} gstin={gateway.gstin} />}
                 <Link to="/account" className="btn-primary" style={{ marginRight: '1rem' }}>View my orders</Link>
                 <Link to="/" style={{ color: 'var(--color-text-muted)', textDecoration: 'underline' }}>Return home</Link>
             </div>
@@ -181,7 +169,7 @@ export default function Checkout() {
                                     type="button"
                                     className="btn-primary"
                                     onClick={() => setStep('payment')}
-                                    style={{ marginTop: '1.5rem', width: '100%', padding: '1.2rem' }}
+                                    style={{ marginTop: '1.5rem', width: '100%', padding: '1.2rem', background: 'var(--color-accent)', color: '#0a0a0a', borderColor: 'var(--color-accent)', fontWeight: 700, boxShadow: '0 0 24px var(--color-accent-glow)' }}
                                 >
                                     Deliver here and continue to payment
                                 </button>
@@ -205,7 +193,7 @@ export default function Checkout() {
                                     <input type="radio" name="payMode" checked={payMode === 'online'} onChange={() => setPayMode('online')} />
                                     <span>
                                         <strong>Pay online ({PREPAID_DISCOUNT_PERCENT}% extra off)</strong>
-                                        <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>UPI, cards and net banking via Cashfree. Pay ₹{(cartTotal - Math.round(cartTotal * PREPAID_DISCOUNT_PERCENT) / 100).toFixed(2)} now.</span>
+                                        <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>UPI, cards and net banking via Cashfree. Pay ₹{(cartTotal - Math.round(cartTotal * PREPAID_DISCOUNT_PERCENT) / 100 + (cartTotal - Math.round(cartTotal * PREPAID_DISCOUNT_PERCENT) / 100 >= FREE_SHIPPING_MIN ? 0 : STANDARD_SHIPPING_FEE)).toFixed(2)} now.</span>
                                     </span>
                                 </label>
                                 <label style={{ ...optionStyle(payMode === 'cod'), opacity: codAllowed ? 1 : 0.5 }}>
@@ -213,7 +201,7 @@ export default function Checkout() {
                                     <span>
                                         <strong>Partial Cash on Delivery</strong>
                                         <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                                            Pay ₹{COD_ADVANCE} online now and ₹{Math.max(0, cartTotal - COD_ADVANCE).toFixed(2)} at delivery. The advance is part of your total, not an extra fee. No prepaid discount.
+                                            Pay ₹{COD_ADVANCE} online now and ₹{Math.max(0, orderTotal - COD_ADVANCE).toFixed(2)} at delivery. The advance is part of your total, not an extra fee. No prepaid discount.
                                         </span>
                                     </span>
                                 </label>
@@ -263,7 +251,7 @@ export default function Checkout() {
                     <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem', display: 'grid', gap: '0.5rem', fontSize: '0.95rem' }}>
                         <div style={rowStyle}><span>Subtotal</span><span>₹{cartTotal.toFixed(2)}</span></div>
                         {prepaidDiscount > 0 && <div style={{ ...rowStyle, color: 'var(--color-accent)' }}><span>Prepaid discount ({PREPAID_DISCOUNT_PERCENT}%)</span><span>-₹{prepaidDiscount.toFixed(2)}</span></div>}
-                        <div style={rowStyle}><span>Shipping</span><span>Free</span></div>
+                        <div style={rowStyle}><span>Shipping</span><span>{shippingPrice ? `₹${shippingPrice.toFixed(2)}` : 'Free'}</span></div>
                         <div style={{ ...rowStyle, borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', marginTop: '0.25rem', fontSize: '1.2rem', fontWeight: 600 }}><span>Total</span><span>₹{orderTotal.toFixed(2)}</span></div>
                         {payMode === 'cod' && step === 'payment' && (
                             <>

@@ -6,6 +6,7 @@ const Product = require('../models/Product.cjs');
 const Transaction = require('../models/Transaction.cjs');
 const { requireUser, requireAdmin, safeEqual } = require('../middleware/auth.cjs');
 const { notifyOrderPaid } = require('../utils/mailer.cjs');
+const { createWorkbook } = require('../utils/spreadsheets.cjs');
 
 const router = express.Router();
 
@@ -96,7 +97,9 @@ const refresh = async (transaction) => {
 // ---- Routes ---------------------------------------------------------------------------------
 
 // Public: tells the browser which Cashfree environment to open
-router.get('/config', (req, res) => res.json({ configured: configured(), mode: mode() }));
+router.get('/config', (req, res) => res.json({
+    configured: configured(), mode: mode(), gstin: process.env.COMPANY_GSTIN || '',
+}));
 
 // Start a payment for one of my unpaid orders. The amount comes from the saved order.
 router.post('/create', requireUser, async (req, res) => {
@@ -207,8 +210,96 @@ router.post('/webhook', async (req, res) => {
 // Admin: every payment attempt with the customer's details
 router.get('/transactions', requireAdmin, async (req, res) => {
     const list = await Transaction.find({}).sort({ createdAt: -1 }).limit(500)
-        .populate('order', 'paymentMethod totalPrice status shippingAddress').lean();
+        .populate('order', 'paymentMethod totalPrice status shippingAddress externalOrderNumber').lean();
     res.json(list);
+});
+
+router.get('/monthly-report', requireAdmin, async (req, res) => {
+    const month = String(req.query.month || '');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return res.status(400).json({ message: 'Choose a valid report month' });
+    const [year, monthNumber] = month.split('-').map(Number);
+    const start = new Date(Date.UTC(year, monthNumber - 1, 1) - 330 * 60 * 1000);
+    const end = new Date(Date.UTC(year, monthNumber, 1) - 330 * 60 * 1000);
+    const period = { $gte: start, $lt: end };
+
+    try {
+        const [orders, payments, codCollections] = await Promise.all([
+            Order.find({ createdAt: period }).sort({ createdAt: 1 }).populate('user', 'name email').lean(),
+            Transaction.find({ status: 'paid', paidAt: period }).sort({ paidAt: 1 }).populate('order', 'externalOrderNumber shippingAddress').lean(),
+            Order.find({ codCollectedAt: period }).sort({ codCollectedAt: 1 }).lean(),
+        ]);
+        const gstin = process.env.COMPANY_GSTIN || 'Not configured';
+        const paymentRows = payments.map(payment => ({
+            Date: payment.paidAt,
+            'Order number': payment.order?.externalOrderNumber || (payment.order?._id ? `ZAM-${String(payment.order._id).slice(-6).toUpperCase()}` : ''),
+            Customer: payment.customerName || payment.order?.shippingAddress?.fullName || '',
+            Email: payment.customerEmail || payment.order?.shippingAddress?.email || '',
+            Type: /offline/i.test(payment.gateway) || payment.method === 'Offline' ? 'Offline' : 'Online',
+            Method: payment.method || payment.gateway,
+            Reference: payment.gatewayPaymentId || payment.gatewayOrderId,
+            Amount: payment.amount,
+            Currency: payment.currency || 'INR',
+            'GSTIN (company)': gstin,
+        }));
+        codCollections.forEach(order => paymentRows.push({
+            Date: order.codCollectedAt,
+            'Order number': order.externalOrderNumber || `ZAM-${String(order._id).slice(-6).toUpperCase()}`,
+            Customer: order.shippingAddress.fullName,
+            Email: order.shippingAddress.email,
+            Type: 'Offline',
+            Method: 'COD collected',
+            Reference: order._id,
+            Amount: order.codCollectedAmount,
+            Currency: 'INR',
+            'GSTIN (company)': gstin,
+        }));
+        const onlineTotal = paymentRows.filter(row => row.Type === 'Online').reduce((sum, row) => sum + Number(row.Amount || 0), 0);
+        const offlineTotal = paymentRows.filter(row => row.Type === 'Offline').reduce((sum, row) => sum + Number(row.Amount || 0), 0);
+        const orderTotal = orders.reduce((sum, order) => sum + Number(order.totalPrice || 0), 0);
+        const outstandingCod = orders.reduce((sum, order) =>
+            sum + Math.max(0, Number(order.codBalance || 0) - Number(order.codCollectedAmount || 0)), 0);
+        const orderRows = orders.map(order => ({
+            Date: order.createdAt,
+            'Order number': order.externalOrderNumber || `ZAM-${String(order._id).slice(-6).toUpperCase()}`,
+            Customer: order.shippingAddress.fullName,
+            Email: order.shippingAddress.email,
+            Phone: order.shippingAddress.phone,
+            'Payment method': order.paymentMethod,
+            Status: order.status,
+            Subtotal: order.itemsPrice,
+            Discount: order.discountPrice,
+            Shipping: order.shippingPrice,
+            Tax: order.taxPrice,
+            'Order total': order.totalPrice,
+            'COD due': Math.max(0, Number(order.codBalance || 0) - Number(order.codCollectedAmount || 0)),
+            'GSTIN (company)': gstin,
+        }));
+        const summaryRows = [
+            { Metric: 'Report month', Value: month },
+            { Metric: 'Company', Value: 'Zamcloth Pvt. Ltd.' },
+            { Metric: 'GSTIN (company)', Value: gstin },
+            { Metric: 'Orders placed', Value: orders.length },
+            { Metric: 'Order value', Value: orderTotal },
+            { Metric: 'Online payments received', Value: onlineTotal },
+            { Metric: 'Offline / COD payments received', Value: offlineTotal },
+            { Metric: 'Total payments received', Value: onlineTotal + offlineTotal },
+            { Metric: 'COD outstanding on orders placed this month', Value: outstandingCod },
+        ];
+        const buffer = await createWorkbook([
+            { name: 'Monthly Summary', columns: ['Metric', 'Value'], rows: summaryRows },
+            { name: 'Orders', columns: ['Date', 'Order number', 'Customer', 'Email', 'Phone', 'Payment method', 'Status', 'Subtotal', 'Discount', 'Shipping', 'Tax', 'Order total', 'COD due', 'GSTIN (company)'], rows: orderRows },
+            { name: 'Payments', columns: ['Date', 'Order number', 'Customer', 'Email', 'Type', 'Method', 'Reference', 'Amount', 'Currency', 'GSTIN (company)'], rows: paymentRows },
+        ]);
+        res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="zamcloth-${month}-report.xlsx"`,
+            'Content-Length': buffer.length,
+        });
+        res.send(buffer);
+    } catch (error) {
+        console.error('Monthly report generation failed:', error.message);
+        res.status(500).json({ message: 'Could not generate the monthly report' });
+    }
 });
 
 module.exports = router;

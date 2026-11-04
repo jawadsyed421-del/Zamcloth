@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import OrderReceipt from '../components/OrderReceipt';
 
 // Where Cashfree sends the customer back after paying (needed for UPI apps and redirects).
 export default function PaymentStatus() {
@@ -34,7 +35,7 @@ export default function PaymentStatus() {
                     const d = await res.json();
                     if (cancelled) return;
                     if (!res.ok) { setStatus('error'); return; }
-                    if (d.status === 'paid') { clearCartRef.current(); setReceipt(d.payment); }
+                    if (d.status === 'paid') { clearCartRef.current(); setReceipt({ order: d.order, payment: d.payment }); }
                     setStatus(d.status);
                     if (d.status !== 'pending') return;
                     await new Promise(r => setTimeout(r, 3000));
@@ -64,22 +65,7 @@ export default function PaymentStatus() {
             <Icon size={64} color="var(--color-accent)" style={{ margin: '0 auto 1.5rem' }} />
             <h1 style={{ marginBottom: '1rem' }}>{view[1]}</h1>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>{view[2]}</p>
-            {status === 'paid' && receipt && (
-                <dl style={{ border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', marginBottom: '2rem' }}>
-                    {[
-                        ['Order ID', `…${String(orderId).slice(-6).toUpperCase()}`],
-                        ['Payment ID', receipt.paymentId],
-                        ['Reference ID', receipt.referenceId],
-                        ['Method', receipt.method],
-                        ['Amount paid', receipt.amount != null ? `₹${Number(receipt.amount).toFixed(2)}` : ''],
-                    ].filter(([, v]) => v).map(([k, v], i) => (
-                        <div key={k} style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '1rem', padding: '0.8rem 1rem', borderTop: i ? '1px solid var(--color-border)' : 'none' }}>
-                            <dt style={{ fontWeight: 600 }}>{k}</dt>
-                            <dd style={{ color: 'var(--color-text-muted)', overflowWrap: 'anywhere', textTransform: k === 'Method' ? 'capitalize' : 'none' }}>{v}</dd>
-                        </div>
-                    ))}
-                </dl>
-            )}
+            {status === 'paid' && receipt && <OrderReceipt order={receipt.order} payment={receipt.payment} />}
             <Link to="/account" className="btn-primary" style={{ marginRight: '1rem' }}>View my orders</Link>
             <Link to={status === 'failed' ? '/checkout' : '/'} style={{ color: 'var(--color-text-muted)', textDecoration: 'underline' }}>
                 {status === 'failed' ? 'Try again' : 'Return home'}

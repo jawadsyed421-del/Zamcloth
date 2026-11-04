@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Upload, Package, Trash2, Save, ReceiptText, CreditCard, Image as ImageIcon } from 'lucide-react';
+import { LogOut, Upload, Package, Trash2, Save, ReceiptText, CreditCard, Image as ImageIcon, FileSpreadsheet, Download } from 'lucide-react';
 import SafeImage from '../components/SafeImage';
 import PasswordInput from '../components/PasswordInput';
 
@@ -120,6 +120,7 @@ function Dashboard({ token, onLogout }) {
                     <button role="tab" aria-selected={tab === 'transactions'} onClick={() => setTab('transactions')}><CreditCard size={16} /> Transactions</button>
                     <button role="tab" aria-selected={tab === 'hero'} onClick={() => setTab('hero')}><ImageIcon size={16} /> Hero banner</button>
                     <button role="tab" aria-selected={tab === 'upload'} onClick={() => setTab('upload')}><Upload size={16} /> Upload product</button>
+                    <button role="tab" aria-selected={tab === 'data'} onClick={() => setTab('data')}><FileSpreadsheet size={16} /> Imports & reports</button>
                 </div>
 
                 {tab === 'orders'
@@ -130,6 +131,8 @@ function Dashboard({ token, onLogout }) {
                     ? <HeroManager auth={auth} onAuthFail={handleAuthFail} />
                     : tab === 'inventory'
                     ? <Inventory products={products} loading={loading} auth={auth} reload={load} onAuthFail={handleAuthFail} goUpload={() => setTab('upload')} />
+                    : tab === 'data'
+                    ? <DataTools auth={auth} onAuthFail={handleAuthFail} onProductsChanged={load} />
                     : <UploadForm auth={auth} onAuthFail={handleAuthFail} onDone={() => { load(); setTab('inventory'); }} />}
             </div>
         </main>
@@ -172,7 +175,7 @@ function Transactions({ auth, onAuthFail }) {
                                     <td>{name}
                                         <span className="muted small">{t.customerEmail || t.order?.shippingAddress?.email}</span>
                                         <span className="muted small">{t.customerPhone || t.order?.shippingAddress?.phone}</span></td>
-                                    <td>{t.order?._id ? `…${String(t.order._id).slice(-6).toUpperCase()}` : '—'}
+                                    <td>{t.order?.externalOrderNumber || (t.order?._id ? `…${String(t.order._id).slice(-6).toUpperCase()}` : '—')}
                                         <span className="muted small">{t.order?.paymentMethod === 'Partial COD' ? 'Partial COD (advance)' : 'Online'}</span></td>
                                     <td>{t.gatewayPaymentId || '—'}<span className="muted small">{t.gateway} · {t.gatewayOrderId}</span></td>
                                     <td style={{ textTransform: 'capitalize' }}>{t.method || '—'}</td>
@@ -216,6 +219,41 @@ function Orders({ auth, onAuthFail }) {
         load();
     };
 
+    const setCodCollected = async (order, collected) => {
+        const prompt = collected
+            ? `Record ₹${Number(order.codBalance).toFixed(2)} collected for order ${orderLabel(order)}?`
+            : `Undo the COD collection record for order ${orderLabel(order)}?`;
+        if (!window.confirm(prompt)) return;
+        const res = await fetch(`/api/orders/${order._id}/cod-collected`, {
+            method: 'PUT',
+            headers: { ...auth, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ collected }),
+        });
+        if (onAuthFail(res)) return;
+        const data = await res.json();
+        setMessage(res.ok ? `COD payment for order ${orderLabel(order)} ${collected ? 'recorded' : 'reversed'}` : data.message);
+        if (res.ok) load();
+    };
+
+    const showPickingSlip = (order) => {
+        const popup = window.open('', '_blank', 'width=820,height=720');
+        if (!popup) {
+            setMessage('Allow pop-ups to generate the order picking slip.');
+            return;
+        }
+        const escape = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        const items = (order.orderItems || []).map(item => `
+            <tr><td>${escape(item.name)}<br><small>${escape([item.color, item.size].filter(Boolean).join(' · '))}</small></td>
+                <td>${escape(item.productCode || 'SKU not set')}</td><td>${escape(item.quantity)}</td></tr>`).join('');
+        popup.document.write(`<!doctype html><html><head><title>Picking slip ${escape(orderLabel(order))}</title>
+            <style>body{font:16px Arial,sans-serif;color:#111;margin:36px}header{display:flex;justify-content:space-between;border-bottom:2px solid #d4af37;padding-bottom:16px}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{text-align:left;padding:12px;border-bottom:1px solid #ddd}small{color:#666}</style>
+            </head><body><header><div><h1>ZAM CLOTH · Picking slip</h1><p>${escape(order.shippingAddress?.fullName)} · ${escape(order.shippingAddress?.phone)}</p><p>${escape(order.shippingAddress?.address)}, ${escape(order.shippingAddress?.city)} ${escape(order.shippingAddress?.postalCode)}</p></div>
+            <div><strong>Order ${escape(orderLabel(order))}</strong><p>${escape(new Date(order.createdAt).toLocaleString('en-IN'))}</p></div></header>
+            <table><thead><tr><th>Product</th><th>SKU to pick</th><th>Quantity</th></tr></thead><tbody>${items}</tbody></table>
+            <script>window.onload=()=>window.print();</script></body></html>`);
+        popup.document.close();
+    };
+
     if (orders === null) return <p className="muted">Loading orders…</p>;
     if (!orders.length) return <div className="admin-card" style={{ textAlign: 'center' }}>No orders yet. Paid orders will appear here.</div>;
 
@@ -224,7 +262,7 @@ function Orders({ auth, onAuthFail }) {
             {message && <p className="admin-ok" role="status">{message}</p>}
             <div style={{ overflowX: 'auto' }}>
                 <table className="admin-table" style={{ minWidth: 820 }}>
-                    <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status / actions</th></tr></thead>
                     <tbody>
                         {orders.map(o => (
                             <tr key={o._id}>
@@ -236,19 +274,134 @@ function Orders({ auth, onAuthFail }) {
                                 <td>₹{o.totalPrice.toFixed(2)}</td>
                                 <td>
                                     <span style={{ color: o.isPaid ? 'var(--color-accent)' : '#e07a7a' }}>{o.isPaid ? (o.paymentMethod === 'Partial COD' ? 'Advance paid' : 'Paid') : (o.transaction?.status === 'failed' ? 'Failed' : 'Unpaid')}</span>
-                                    {o.paymentMethod === 'Partial COD' && <span className="muted small">COD balance ₹{(o.codBalance || 0).toFixed(2)}</span>}
+                                    {o.paymentMethod === 'Partial COD' && <span className="muted small">{o.codCollectedAt ? `COD collected ₹${Number(o.codCollectedAmount || 0).toFixed(2)}` : `COD balance ₹${(o.codBalance || 0).toFixed(2)}`}</span>}
+                                    {o.paymentMethod === 'Partial COD' && Number(o.codBalance) > 0 && (
+                                        <button className="admin-ghost" onClick={() => setCodCollected(o, !o.codCollectedAt)}>
+                                            {o.codCollectedAt ? 'Undo COD collection' : 'Mark COD collected'}
+                                        </button>
+                                    )}
                                     {o.transaction?.gatewayPaymentId && <span className="muted small">{o.transaction.gatewayPaymentId}</span>}
                                 </td>
                                 <td>
                                     <select value={o.status} onChange={e => setStatus(o, e.target.value)} aria-label="Order status" style={{ minWidth: 150 }}>
                                         {STATUS_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                                     </select>
+                                    <button className="admin-ghost" onClick={() => showPickingSlip(o)}><ReceiptText size={14} /> Picking slip</button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+        </div>
+    );
+}
+
+const orderLabel = (order) => order.externalOrderNumber || `ZAM-${String(order._id).slice(-6).toUpperCase()}`;
+
+function DataTools({ auth, onAuthFail, onProductsChanged }) {
+    const [busy, setBusy] = useState('');
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [month, setMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+
+    const downloadTemplate = async (type) => {
+        setBusy('template'); setError('');
+        try {
+            const res = await fetch(`/api/${type === 'products' ? 'products' : 'orders'}/bulk-template`, { headers: auth });
+            if (onAuthFail(res)) return;
+            if (!res.ok) throw new Error('Could not download the template');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `zamcloth-${type === 'products' ? 'product' : 'order'}-template.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            setError(err.message || 'Could not download the template');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const importSheet = async (type, file) => {
+        if (!file) return;
+        setBusy(type); setMessage(''); setError('');
+        try {
+            const body = new FormData();
+            body.append('file', file);
+            const res = await fetch(`/api/${type === 'products' ? 'products' : 'orders'}/bulk-upload`, { method: 'POST', headers: auth, body });
+            if (onAuthFail(res)) return;
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Import failed');
+            setMessage(type === 'products'
+                ? `Imported ${data.imported} products.`
+                : `Imported ${data.imported} orders and ${data.payments} payment records.`);
+            if (type === 'products') onProductsChanged();
+        } catch (err) {
+            setError(err.message || 'Import failed');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const downloadReport = async () => {
+        setBusy('report'); setMessage(''); setError('');
+        try {
+            const res = await fetch(`/api/payment/monthly-report?month=${encodeURIComponent(month)}`, { headers: auth });
+            if (onAuthFail(res)) return;
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Could not generate the report');
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `zamcloth-${month}-report.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            setMessage(`Downloaded the ${month} monthly report.`);
+        } catch (err) {
+            setError(err.message || 'Could not generate the report');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    return (
+        <div style={{ display: 'grid', gap: '1.25rem' }}>
+            <section className="admin-card">
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>Bulk product upload</h2>
+                <p className="muted small" style={{ marginBottom: '1rem' }}>Upload an Excel or CSV sheet using the template. Product codes must be unique. Each product needs an image URL (HTTP or HTTPS).</p>
+                <button className="admin-ghost" disabled={busy !== ''} onClick={() => downloadTemplate('products')}><Download size={15} /> Download product template</button>
+                <label style={{ marginTop: '1rem' }}>Product spreadsheet
+                    <input type="file" accept=".xlsx,.csv" disabled={busy !== ''} onChange={e => { importSheet('products', e.target.files[0]); e.target.value = ''; }} />
+                </label>
+            </section>
+            <section className="admin-card">
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>Bulk order upload</h2>
+                <p className="muted small" style={{ marginBottom: '1rem' }}>Use one row per order item and repeat orderNumber for items in the same order. Product codes must exist. Historical imports do not change current stock. Use paymentMethod Online, Partial COD, or Offline; paymentAmount is the amount already collected.</p>
+                <button className="admin-ghost" disabled={busy !== ''} onClick={() => downloadTemplate('orders')}><Download size={15} /> Download order template</button>
+                <label style={{ marginTop: '1rem' }}>Order spreadsheet
+                    <input type="file" accept=".xlsx,.csv" disabled={busy !== ''} onChange={e => { importSheet('orders', e.target.files[0]); e.target.value = ''; }} />
+                </label>
+            </section>
+            <section className="admin-card">
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>Monthly transactions and payments</h2>
+                <p className="muted small" style={{ marginBottom: '1rem' }}>Download an Excel workbook with monthly summary, orders, online payments, offline payments, and COD collections. Add COMPANY_GSTIN in the server environment to include your GSTIN.</p>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap' }}>
+                    <label>Report month<input type="month" value={month} onChange={e => setMonth(e.target.value)} /></label>
+                    <button className="btn-primary" disabled={busy !== '' || !month} onClick={downloadReport}>{busy === 'report' ? 'Generating…' : 'Download Excel report'}</button>
+                </div>
+            </section>
+            {message && <p className="admin-ok" role="status">{message}</p>}
+            {error && <p className="admin-error" role="alert" style={{ whiteSpace: 'pre-wrap' }}>{error}</p>}
+            {busy && busy !== 'report' && <p className="muted">Uploading {busy}…</p>}
         </div>
     );
 }
@@ -291,7 +444,7 @@ function Inventory({ products, loading, auth, reload, onAuthFail, goUpload }) {
             {message && <p className="admin-ok" role="status">{message}</p>}
             <div style={{ overflowX: 'auto' }}>
                 <table className="admin-table">
-                    <thead><tr><th>Photo</th><th>Product</th><th>Section</th><th>Price</th><th>Stock</th><th></th></tr></thead>
+                    <thead><tr><th>Photo</th><th>Product</th><th>Product code</th><th>Section</th><th>Price</th><th>Stock</th><th></th></tr></thead>
                     <tbody>
                         {products.map(p => {
                             const e = edits[p._id] || {};
@@ -299,6 +452,7 @@ function Inventory({ products, loading, auth, reload, onAuthFail, goUpload }) {
                                 <tr key={p._id}>
                                     <td><SafeImage src={p.image} alt={p.name} style={{ width: 56, height: 72, objectFit: 'cover', borderRadius: 4, fontSize: '1.4rem' }} /></td>
                                     <td>{p.name}<span className="muted small">{p.subcategory}{p.ageGroup ? ` · ${p.ageGroup}` : ''}</span></td>
+                                    <td>{p.productCode || '—'}</td>
                                     <td>{p.category}</td>
                                     <td><input type="number" min="0" className="num" value={e.price ?? p.price} onChange={ev => setEdit(p._id, { price: ev.target.value })} aria-label={`Price for ${p.name}`} /></td>
                                     <td>
@@ -556,6 +710,7 @@ function UploadForm({ auth, onAuthFail, onDone }) {
 
             <div className="fields">
                 <label>Product name<input name="name" required maxLength={80} placeholder="e.g. Cotton Graphic T-Shirt" /></label>
+                <label>Product code<input name="productCode" required maxLength={60} placeholder="e.g. ZAM-KBT-001-BLK-67" /></label>
                 <div className="row">
                     <label>Section
                         <select name="category" value={category} onChange={e => setCategory(e.target.value)}>

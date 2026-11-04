@@ -16,6 +16,7 @@
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "framer-motion": "^12.33.0",
     "lucide-react": "^0.563.0",

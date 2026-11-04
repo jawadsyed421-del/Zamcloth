@@ -39,7 +39,7 @@ export const PAGES = {
                 ['How can I choose the right size?', 'Please refer to the size chart on the product page before placing your order.'],
                 ['What payment methods do you accept?', 'Available payment methods will be displayed during checkout.'],
                 ['Do you offer Cash on Delivery (COD)?', 'Partial Cash on Delivery is available on eligible orders, subject to PIN code and order eligibility. Customers pay ₹99 online in advance, and the remaining order balance is payable at delivery. The available payment options and applicable charges will be displayed at checkout.'],
-                ['How much does shipping cost?', 'Applicable shipping charges are displayed at checkout. ZAM offers free standard shipping on eligible orders with a merchandise subtotal of ₹1,499 or more after discounts, subject to the Shipping Policy. Any applicable COD or other service fees will be disclosed separately at checkout.'],
+                ['How much does shipping cost?', 'Standard shipping is ₹1,499 when the merchandise subtotal after discounts is below ₹1,499. Eligible orders with a merchandise subtotal of ₹1,499 or more receive free standard shipping. Any applicable COD or other service fees will be disclosed separately at checkout.'],
                 ['How long will delivery take?', 'Estimated delivery timelines depend on your location and product availability. Please check the information provided during checkout or in your order confirmation.'],
                 ['Can I cancel my order?', 'Order cancellation is subject to our Cancellation Policy. Please contact customer support as soon as possible if you wish to cancel.'],
                 ['Can I return or exchange a product?', 'Returns and exchanges are subject to our published Returns & Exchanges Policy and applicable consumer rights.'],
@@ -74,7 +74,7 @@ export const PAGES = {
             { h: '3. Shipping Charges & Free Shipping' },
             { ul: [
                 'ZAM offers free standard shipping on eligible orders with a merchandise subtotal of ₹1,499 or more, calculated after discounts and before shipping charges.',
-                'Orders with a merchandise subtotal below ₹1,499 may incur shipping charges, which will be displayed at checkout.',
+                'Orders with a merchandise subtotal below ₹1,499 are charged a standard shipping fee of ₹1,499.',
                 'Any applicable COD or other service fees will be disclosed separately before you confirm your order.',
                 'Free shipping applies to eligible standard deliveries to serviceable PIN codes. Any exclusions or additional charges will be communicated before order confirmation.',
             ] },

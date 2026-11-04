@@ -3,6 +3,7 @@ const multer = require('multer');
 const Product = require('../models/Product.cjs');
 const Image = require('../models/Image.cjs');
 const { requireAdmin } = require('../middleware/auth.cjs');
+const { createWorkbook, readSpreadsheetRows } = require('../utils/spreadsheets.cjs');
 
 const router = express.Router();
 
@@ -15,6 +16,10 @@ const upload = multer({
     limits: { fileSize: 4 * 1024 * 1024, files: MAX_PHOTOS },
     fileFilter: (req, file, cb) =>
         cb(TYPES.has(file.mimetype) ? null : new Error('Only JPG, PNG or WebP photos are allowed'), TYPES.has(file.mimetype)),
+});
+const spreadsheetUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
 
 const saveImage = async (file) => {
@@ -78,6 +83,7 @@ const parsePhotoColors = (raw, count, options) => {
 const fieldsFromBody = (b) => {
     const out = {};
     ['name', 'description', 'category', 'subcategory'].forEach(k => { if (b[k] !== undefined) out[k] = b[k]; });
+    if (b.productCode !== undefined) out.productCode = String(b.productCode).trim().toUpperCase();
     if (b.ageGroup !== undefined) out.ageGroup = b.ageGroup || undefined;
     if (b.price !== undefined) out.price = Number(b.price);
     if (b.stock !== undefined) out.stock = Math.max(0, parseInt(b.stock, 10) || 0);
@@ -98,6 +104,15 @@ router.get('/', async (req, res) => {
     }
 });
 
+router.get('/bulk-template', requireAdmin, async (req, res) => {
+    const headers = ['productCode', 'name', 'description', 'price', 'category', 'subcategory', 'stock', 'image', 'sizes', 'colors', 'ageGroup', 'isNew', 'isTrending'];
+    const buffer = await createWorkbook([{ name: 'Products', columns: headers }]);
+    res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="zamcloth-product-template.xlsx"',
+    }).send(buffer);
+});
+
 // Public: single product
 router.get('/:id', async (req, res) => {
     try {
@@ -113,6 +128,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', requireAdmin, upload.array('images', MAX_PHOTOS), async (req, res) => {
     const files = req.files || [];
     if (files.length === 0) return res.status(400).json({ message: 'Choose at least one photo to upload' });
+    if (!String(req.body.productCode || '').trim()) return res.status(400).json({ message: 'Enter a product code' });
     const saved = [];
     try {
         for (const f of files) saved.push(await saveImage(f));
@@ -124,7 +140,63 @@ router.post('/', requireAdmin, upload.array('images', MAX_PHOTOS), async (req, r
         res.status(201).json(product);
     } catch (error) {
         await Promise.all(saved.map(removeImage));
+        if (error.code === 11000) return res.status(409).json({ message: 'That product code already exists. Product codes must be unique.' });
         res.status(400).json({ message: error.message });
+    }
+});
+
+// Admin: import products from the first sheet of an Excel or CSV file.
+router.post('/bulk-upload', requireAdmin, spreadsheetUpload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ message: 'Choose an Excel or CSV file to upload' });
+        const rows = await readSpreadsheetRows(req.file);
+        if (!rows.length || rows.length > 1000) return res.status(400).json({ message: 'The file must contain between 1 and 1,000 product rows' });
+
+        const required = ['productCode', 'name', 'description', 'price', 'category', 'subcategory', 'stock', 'image'];
+        const errors = [];
+        const codes = new Set();
+        const products = rows.map((row, index) => {
+            const line = index + 2;
+            const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [String(key).trim().toLowerCase(), value]));
+            const value = (key) => String(normalized[key.toLowerCase()] ?? '').trim();
+            const productCode = value('productCode').toUpperCase();
+            const price = Number(value('price'));
+            const stock = Number(value('stock'));
+            if (!['Women', 'Kids', 'Men'].includes(value('category'))) errors.push(`Row ${line}: category must be Women, Kids, or Men`);
+            if (required.some(key => !value(key))) errors.push(`Row ${line}: productCode, name, description, price, category, subcategory, stock, and image are required`);
+            if (!productCode || productCode.length > 60) errors.push(`Row ${line}: productCode must be 1–60 characters`);
+            if (codes.has(productCode)) errors.push(`Row ${line}: duplicate productCode "${productCode}" in this file`);
+            codes.add(productCode);
+            if (!Number.isFinite(price) || price <= 0) errors.push(`Row ${line}: price must be greater than zero`);
+            if (!Number.isInteger(stock) || stock < 0) errors.push(`Row ${line}: stock must be a non-negative whole number`);
+            let image = '';
+            try {
+                const url = new URL(value('image'));
+                if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+                image = url.toString();
+            } catch {
+                errors.push(`Row ${line}: image must be an absolute HTTP or HTTPS URL`);
+            }
+            return {
+                productCode, name: value('name').slice(0, 80), description: value('description').slice(0, 500),
+                price, category: value('category'), subcategory: value('subcategory'),
+                ageGroup: value('ageGroup') || undefined, stock, image, images: [image],
+                sizes: list(value('sizes')), colors: list(value('colors')),
+                isNew: flag(value('isNew')), isTrending: flag(value('isTrending')),
+            };
+        });
+        if (errors.length) return res.status(400).json({ message: errors.slice(0, 30).join('\n'), errors });
+
+        const existing = await Product.find({ productCode: { $in: [...codes] } }).select('productCode').lean();
+        if (existing.length) return res.status(409).json({ message: `Product codes already exist: ${existing.map(p => p.productCode).join(', ')}` });
+        const created = await Product.insertMany(products, { ordered: true });
+        res.status(201).json({ imported: created.length });
+    } catch (error) {
+        if (error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ message: 'Excel or CSV files must be under 10 MB' });
+        if (error.code === 11000) return res.status(409).json({ message: 'A product code already exists. No duplicate product codes are allowed.' });
+        if (error.message === 'Upload an .xlsx or .csv file') return res.status(400).json({ message: error.message });
+        console.error('Product bulk import failed:', error.message);
+        res.status(400).json({ message: 'Could not import products. Check that the file is a valid Excel or CSV sheet.' });
     }
 });
 
@@ -165,7 +237,10 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
 // Upload / validation errors
 router.use((err, req, res, next) => {
-    res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Each photo must be under 4 MB' : err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE' ? `You can upload up to ${MAX_PHOTOS} photos` : err.message });
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ message: req.path === '/bulk-upload' ? 'Excel or CSV files must be under 10 MB' : 'Each photo must be under 4 MB' });
+    }
+    return res.status(400).json({ message: err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE' ? `You can upload up to ${MAX_PHOTOS} photos` : err.message });
 });
 
 module.exports = router;

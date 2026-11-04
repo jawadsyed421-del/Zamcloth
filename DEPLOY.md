@@ -35,6 +35,7 @@ In the service's **Environment** tab, add these. Never put them in GitHub.
 | `SMTP_USER` | Gmail address that sends the order emails |
 | `SMTP_PASS` | that Gmail's 16-letter App Password (not the normal password) |
 | `OWNER_EMAIL` | where new-order alerts go, e.g. `zamcloth5@gmail.com` |
+| `COMPANY_GSTIN` | Optional company GSTIN shown in receipts and monthly Excel reports |
 
 Do not set `PORT`. Render sets it.
 

@@ -10,6 +10,7 @@ const COMPANY = {
     email: 'info@zamcloth.com',
     phone: '9372578357',
     address: 'F47 1st Floor D Wing, Elco Arcade 46 Hill Road, Bandra West, Mumbai, Maharashtra, India, 400050',
+    gstin: process.env.COMPANY_GSTIN || '',
 };
 
 const configured = () => Boolean(process.env.SMTP_USER && process.env.SMTP_PASS) || process.env.MAIL_DRY_RUN === '1';
@@ -35,9 +36,10 @@ const orderNo = (order) => `ZAM-${String(order._id).slice(-6).toUpperCase()}`;
 
 const itemsTable = (order) => `
 <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">
-  <tr style="background:#f4f1e8"><th align="left" style="padding:8px">Item</th><th align="center" style="padding:8px">Qty</th><th align="right" style="padding:8px">Price</th><th align="right" style="padding:8px">Amount</th></tr>
+  <tr style="background:#f4f1e8"><th align="left" style="padding:8px">Item</th><th align="left" style="padding:8px">SKU</th><th align="center" style="padding:8px">Qty</th><th align="right" style="padding:8px">Price</th><th align="right" style="padding:8px">Amount</th></tr>
   ${order.orderItems.map(i => `<tr>
     <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.name)}<br><span style="color:#777;font-size:12px">${[i.size && `Size: ${esc(i.size)}`, i.color && `Colour: ${esc(i.color)}`].filter(Boolean).join(' · ')}</span></td>
+    <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.productCode || '—')}</td>
     <td align="center" style="padding:8px;border-bottom:1px solid #eee">${i.quantity}</td>
     <td align="right" style="padding:8px;border-bottom:1px solid #eee">${money(i.price)}</td>
     <td align="right" style="padding:8px;border-bottom:1px solid #eee">${money(i.price * i.quantity)}</td></tr>`).join('')}
@@ -72,7 +74,7 @@ const shell = (title, body) => `<!doctype html><html><body style="margin:0;backg
 <tr><td style="background:#111;color:#d4af37;padding:20px 24px;font-size:22px;letter-spacing:2px">ZAM CLOTH<br><span style="color:#ccc;font-size:12px;letter-spacing:0">${esc(COMPANY.tagline)}</span></td></tr>
 <tr><td style="padding:24px"><h2 style="margin:0 0 16px;font-size:20px">${title}</h2>${body}</td></tr>
 <tr><td style="background:#f4f1e8;padding:16px 24px;font-size:12px;color:#666;line-height:1.6">
-${esc(COMPANY.legalName)} · ${esc(COMPANY.address)}<br>Support: ${esc(COMPANY.email)} · ${esc(COMPANY.phone)}</td></tr>
+${esc(COMPANY.legalName)} · ${esc(COMPANY.address)}<br>${COMPANY.gstin ? `GSTIN: ${esc(COMPANY.gstin)}<br>` : ''}Support: ${esc(COMPANY.email)} · ${esc(COMPANY.phone)}</td></tr>
 </table></td></tr></table></body></html>`;
 
 // Invoice for the customer

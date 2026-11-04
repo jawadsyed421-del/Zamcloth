@@ -212,3 +212,21 @@ button {
 }
 
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+
+@media print {
+  body * { visibility: hidden !important; }
+  .receipt-print-root, .receipt-print-root * { visibility: visible !important; }
+  .receipt-print-root {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+  .receipt-actions { display: none !important; }
+}
