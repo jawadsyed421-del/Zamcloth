@@ -16,7 +16,7 @@ if (isProd && (process.env.ADMIN_TOKEN_SECRET || '').length < 32) {
 const app = express();
 
 app.disable('x-powered-by');
-app.set('trust proxy', 1); // behind Render's proxy, so req.ip is the real visitor address
+app.set('trust proxy', 1); // behind Vercel's proxy, so req.ip is the real visitor address
 
 // Middleware
 app.use(cors());
@@ -28,7 +28,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Connect Database once; every /api request waits for it (works on Render and on Vercel serverless)
+// Connect Database once; every /api request waits for it (works locally and on Vercel serverless)
 let ready = null;
 const ensureDb = () => {
     if (!ready) {
@@ -85,7 +85,7 @@ if (fs.existsSync(path.join(DIST, 'index.html'))) {
 
 module.exports = app;
 
-// Run as a normal server (Render, local). On Vercel the app is imported by api/index.js instead.
+// Run as a normal server (local development). On Vercel the app is imported by api/index.js instead.
 if (require.main === module) {
     const PORT = process.env.PORT || 5000;
     ensureDb().catch(e => { console.error(`Error: ${e.message}`); process.exit(1); });
