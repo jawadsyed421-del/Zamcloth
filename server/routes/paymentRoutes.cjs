@@ -139,8 +139,14 @@ router.post('/create', requireUser, async (req, res) => {
         });
         res.json({ paymentSessionId: cf.payment_session_id, gatewayOrderId, mode: mode() });
     } catch (error) {
-        console.error('Cashfree create failed:', error.message);
-        res.status(502).json({ message: 'Could not start the payment. Please try again.' });
+        console.error('Cashfree create failed:', {
+            status: error.status || null,
+            message: error.message,
+        });
+        const gatewayDetail = error.status && error.message
+            ? `Cashfree rejected the request (${error.status}: ${error.message}).`
+            : 'Could not start the payment. Please try again.';
+        res.status(502).json({ message: gatewayDetail });
     }
 });
 
