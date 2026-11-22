@@ -14,8 +14,8 @@ const spreadsheetUpload = multer({ storage: multer.memoryStorage(), limits: { fi
 
 const PREPAID_DISCOUNT_PERCENT = 5;
 const COD_ADVANCE = 99;
-const FREE_SHIPPING_MIN = 1499;
-const STANDARD_SHIPPING_FEE = 1499;
+const FREE_SHIPPING_MIN = Infinity; // DEMO: was 1499 (no free shipping during demo)
+const STANDARD_SHIPPING_FEE = 5; // DEMO: was 1499
 const STATUSES = ['pending_payment', 'processing', 'shipped', 'delivered', 'cancelled'];
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 

@@ -115,12 +115,12 @@ export default function ProductDetails() {
 
                     <ul style={{ marginTop: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', listStyle: 'disc', paddingLeft: '1rem' }}>
                         <li>Get an extra 5% off on prepaid orders</li>
-                        <li>Free shipping on orders of ₹1,499 or more</li>
+                        <li>Flat ₹5 shipping on all orders</li>
                         <li>Partial COD available: pay ₹99 now, the rest on delivery</li>
                     </ul>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.8rem', marginTop: '2rem' }}>
-                        {[[Truck, 'Free shipping ₹1,499+'], [RefreshCw, 'Easy exchanges'], [ShieldCheck, '100% secure payments'], [Zap, 'Fast dispatch']].map(([Icon, label]) => (
+                        {[[Truck, 'Flat ₹5 shipping'], [RefreshCw, 'Easy exchanges'], [ShieldCheck, '100% secure payments'], [Zap, 'Fast dispatch']].map(([Icon, label]) => (
                             <div key={label} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1rem 0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', textAlign: 'center', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                 <Icon size={20} color="var(--color-accent)" /> {label}
                             </div>

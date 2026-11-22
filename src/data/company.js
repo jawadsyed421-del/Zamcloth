@@ -11,7 +11,7 @@ export const COMPANY = {
 };
 
 // Shipping and payment rules shown on the site and used at checkout
-export const FREE_SHIPPING_MIN = 1499;
-export const STANDARD_SHIPPING_FEE = 1499;
+export const FREE_SHIPPING_MIN = Infinity; // DEMO: was 1499 (no free shipping during demo)
+export const STANDARD_SHIPPING_FEE = 5; // DEMO: was 1499
 export const PREPAID_DISCOUNT_PERCENT = 5;
 export const COD_ADVANCE = 99;
